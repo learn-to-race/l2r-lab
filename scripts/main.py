@@ -17,6 +17,20 @@ if __name__ == "__main__":
                 "Width": 512,
                 "Height": 384,
                 "sim_addr": "tcp://0.0.0.0:8008",
+            },
+            {
+                "name": "CameraLeftRGB",
+                "Addr": "tcp://0.0.0.0:8008",
+                "Width": 512,
+                "Height": 384,
+                "sim_addr": "tcp://0.0.0.0:8008",
+            },
+            {
+                "name": "CameraRightRGB",
+                "Addr": "tcp://0.0.0.0:8008",
+                "Width": 512,
+                "Height": 384,
+                "sim_addr": "tcp://0.0.0.0:8008",
             }
         ],
         env_kwargs={
