@@ -151,7 +151,8 @@ class ModelFreeRunner(BaseRunner):
                 obs_encoded = self.env_wrapped.reset(True, env)
             else:
                 obs_encoded = env.reset()
-
+            
+            print(obs_encoded.shape)
             ep_ret = 0
             total_reward = 0
             info = None

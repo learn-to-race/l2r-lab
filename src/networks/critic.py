@@ -251,6 +251,8 @@ class ActorCritic(nn.Module):
         """
 
         super().__init__()
+        state_dim = 96
+        print(state_dim)
         self.state_dim = state_dim
         obs_dim = state_dim
         act_dim = action_dim
@@ -315,8 +317,6 @@ class ActorCritic(nn.Module):
         """
         # if obs_feat.ndimension() == 1:
         #    obs_feat = obs_feat.unsqueeze(0)
-        self.state_dim = 96
-        print(self.state_dim)
         with torch.no_grad():
             if self.use_speed:
                 img_embed = obs_feat[..., : self.state_dim]

@@ -62,7 +62,9 @@ class SACAgent(BaseAgent):
 
         self.action_space = Box(-1, 1, (2,))
         self.act_dim = self.action_space.shape[0]
-        self.obs_dim = 32
+        self.obs_dim = 96
+        print("AC Config path")
+        print(actor_critic_cfg_path)
 
         self.actor_critic = create_configurable(
             actor_critic_cfg_path, NameToSourcePath.network

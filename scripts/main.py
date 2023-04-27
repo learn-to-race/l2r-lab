@@ -42,7 +42,7 @@ if __name__ == "__main__":
             "not_moving_timeout": 50000,
             "reward_pol": "custom",
             "provide_waypoints": False,
-            "active_sensors": ["CameraFrontRGB"],
+            "active_sensors": ["CameraFrontRGB", "CameraRightRGB", "CameraLeftRGB"],
             "vehicle_params": False,
         },
         action_cfg={
