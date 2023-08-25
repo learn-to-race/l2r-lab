@@ -1,0 +1,110 @@
+data:
+  dataset: joint_mono_segmentation
+  mono:
+    data_split: cityscapes
+    dataset: cityscapes_sequences
+    enable_color_aug: true
+    img_ext: .jpg
+    num_test_samples: 0
+    num_val_samples: 20
+    path: /scratch/lhoyer/58326/data/leftImg8bit_sequence_small
+  segmentation:
+    dataset: cityscapes
+    dataset_seed: 42
+    img_cols: 1024
+    img_rows: 512
+    label_sparsity: 0
+    path: /itet-stor/lhoyer/net_scratch/data/
+    restrict_to_subset:
+      n_min_subset: 10
+      n_subset: 10
+    val_downsample_gt: true
+  shuffle_trainset: true
+model:
+  arch: joint_segmentation_depth
+  backbone_name: resnet101
+  backbone_pretraining: imnet
+  depth_args:
+    aspp_rates:
+    - 6
+    - 12
+    - 18
+    intermediate_aspp: true
+    max_scale_size:
+    - 512
+    - 1024
+    n_upconv: 4
+    num_ch_dec:
+    - 64
+    - 128
+    - 128
+    - 256
+    - 256
+  depth_pretraining: mono_cityscapes_1024x512_r101dil_aspp_dec5_posepretrain_crop512x512bs4
+  disable_monodepth: false
+  enable_imnet_encoder: true
+  freeze_backbone: false
+  freeze_depth: false
+  freeze_pose: false
+  freeze_segmentation: true
+  pose_model_input: pairs
+  pose_model_type: separate_resnet
+  pose_pretraining: mono_cityscapes_1024x512_r101dil_aspp_dec5_posepretrain_crop512x512bs4
+  replace_stride_with_dilation:
+  - false
+  - false
+  - true
+  segmentation_args: null
+  segmentation_name: null
+monodepth_options:
+  crop_h: 512
+  crop_w: 512
+  frame_ids:
+  - 0
+  - -1
+  - 1
+  height: 512
+  num_scales: 4
+  width: 1024
+name: lr1e-5_featdist1e-2
+training:
+  amp: true
+  batch_size: 4
+  early_stopping: null
+  feat_dist_lambda: 0.01
+  grad_accumulation: ''
+  grad_modification: 'off'
+  log_gradients: false
+  log_path: /itet-stor/lhoyer/net_scratch/local_results/cityscapes-monodepth-101aspp-dec6-crop/lr1e-5_featdist1e-2
+  lr_schedule:
+    gamma: 0.1
+    milestones:
+    - 160000
+    name: multi_step
+  monodepth_lambda: 1.0
+  monodepth_loss:
+    avg_reprojection: false
+    disable_automasking: false
+    disparity_smoothness: 0.001
+    max_depth: 100
+    min_depth: 0.1
+    no_ssim: false
+    test_max_depth: 80
+    test_min_depth: 0.001
+  n_tensorboard_imgs: 20
+  n_tensorboard_trainimgs: 0
+  n_workers: 1
+  optimizer:
+    lr: 1.0e-05
+    name: adam
+  print_interval: 100
+  resume: null
+  save_model: true
+  save_separate_monodepth_models: true
+  segmentation_lambda: 0.0
+  segmentation_loss:
+    name: cross_entropy
+  test_batch_size: 1
+  train_iters: 8000000000
+  val_depth_interval: 2000
+  val_interval: 200000000000
