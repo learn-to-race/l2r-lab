@@ -21,18 +21,8 @@ cv_trainer_schema = Map(
                 "num_epochs": Int(),
                 "lr": Float(),
                 "model_save_path": Str(),
-            }
-        )
-    }
-)
-
-
-data_fetcher_schema = Map(
-    {
-        "data_fetcher_config": Map(
-            {
-                "train_path": Str(),
-                "val_path": Str(),
+                "train_data_path": Str(),
+                "val_data_path": Str(),
             }
         )
     }

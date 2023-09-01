@@ -1,11 +1,15 @@
 import torch
+from PIL import Image
 from tqdm import tqdm
+from torch import nn
 import numpy as np
 import os
-from src.encoders.dataloaders.base import BaseDataFetcher
+from torch.nn.utils.rnn import pad_sequence, pad_packed_sequence, pack_padded_sequence
+from torch.optim import AdamW
+import matplotlib.pyplot as plt
+import re
 
 from src.encoders.transforms.preprocessing import crop_resize_center
-from src.config.yamlize import yamlize
 
 
 class ExpertDemoDataset(torch.utils.data.Dataset):
@@ -32,23 +36,16 @@ class ExpertDemoDataset(torch.utils.data.Dataset):
         return self.imgs[idx]
 
 
-@yamlize
-class ExpertDemoDataFetcher(BaseDataFetcher):
-    def __init__(self, train_path: str, val_path: str):
-        super(ExpertDemoDataFetcher, self).__init__()
-        self.train_path = train_path
-        self.val_path = val_path
+def get_expert_demo_dataloaders(train_path, val_path, batch_size, device):
+    def collate(batch):
+        return torch.stack(batch).to(device)
 
-    def get_dataloaders(self, batch_size, device):
-        def collate(batch):
-            return torch.stack(batch).to(device)
-
-        train_ds = ExpertDemoDataset(self.train_path)
-        val_ds = ExpertDemoDataset(self.val_path)
-        train_dl = torch.utils.data.DataLoader(
-            train_ds, batch_size=batch_size, collate_fn=collate, shuffle=True
-        )
-        val_dl = torch.utils.data.DataLoader(
-            val_ds, batch_size=batch_size, collate_fn=collate, shuffle=False
-        )
-        return train_ds, val_ds, train_dl, val_dl
+    train_ds = ExpertDemoDataset(train_path)
+    val_ds = ExpertDemoDataset(val_path)
+    train_dl = torch.utils.data.DataLoader(
+        train_ds, batch_size=batch_size, collate_fn=collate, shuffle=True
+    )
+    val_dl = torch.utils.data.DataLoader(
+        val_ds, batch_size=batch_size, collate_fn=collate, shuffle=False
+    )
+    return train_ds, val_ds, train_dl, val_dl

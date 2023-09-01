@@ -98,7 +98,14 @@ class VAE(BaseEncoder, torch.nn.Module):
 
     def distribution(self, x, device=DEVICE):
         # expects (N, H, W, C)
-        h = self.encoder(x)
+        if len(x.shape) == 3:
+            p = torch.zeros([1, 3, 42, 144]).to(device)
+            p[0] = crop_resize_center(x)
+        else:
+            p = torch.zeros([x.shape[0], 3, 42, 144]).to(device)
+            for i in range(x.shape[0]):
+                p[i] = crop_resize_center(x[i])
+        h = self.encoder(p)
         z, mu, logvar = self.bottleneck(h)
         return z, mu, logvar
 
@@ -112,8 +119,7 @@ class VAE(BaseEncoder, torch.nn.Module):
         z = self.decode(z)
         return z, mu, logvar
 
-    def loss(self, actual, pred, kld_weight=1.0):
-        recon, mu, logvar = pred
+    def loss(self, actual, recon, mu, logvar, kld_weight=1.0):
         bce = F.binary_cross_entropy(recon, actual, reduction="sum")
         kld = -0.5 * torch.sum(1 + logvar - mu**2 - logvar.exp())
         return bce + kld * kld_weight

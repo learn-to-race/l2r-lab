@@ -1,0 +1,16 @@
+name: ModelFreeRunner
+config:
+  agent_config_path: "config_files/canny/agent.yaml"
+  buffer_config_path: "config_files/canny/buffer.yaml"
+  encoder_config_path: "config_files/canny/encoder.yaml"
+  model_save_dir: '/mnt'
+  experiment_state_path: '/mnt/CANNY_ENC/experimentState.json'
+  experiment_name: 'CANNY_ENC'
+  num_test_episodes: 1
+  num_run_episodes: 5100
+  save_every_nth_episode: 100
+  update_model_after: 2000 # update_after steps
+  update_model_every: 100 # update_every
+  eval_every: 5000
+  max_episode_length: 50000 # max_ep_len
+  use_container: True
