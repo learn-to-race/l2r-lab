@@ -41,7 +41,7 @@ if __name__ == "__main__":
         },
     )
     runner = create_configurable(
-        "config_files/randomencagent/runner.yaml", NameToSourcePath.runner
+        "config_files/example_sac/runner.yaml", NameToSourcePath.runner
     )
 
     with open(
