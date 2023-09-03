@@ -18,7 +18,7 @@ class WanDBLogger(BaseLogger):
         """
         # super().__init__(log_dir, experiment_name)
         wandb.login(key=api_key)
-        wandb.init(project=project_name, entity="learn2race")
+        wandb.init(project=project_name, entity="learntorace")
 
     def log(self, data):
         """Log metrics to WandB, using names present in dict.
