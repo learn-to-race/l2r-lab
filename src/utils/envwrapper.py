@@ -3,18 +3,24 @@ import numpy as np
 import torch
 import itertools
 from src.constants import DEVICE
-
+import os
 
 class EnvContainer:
     """Container for the pip-installed L2R Environment."""
 
-    def __init__(self, encoder=None):
+    def __init__(self, encoder=None,collect_data=False):
         """Initialize container around encoder object
 
         Args:
             encoder (nn.Module, optional): Encoder object to encoder inputs. Defaults to None.
         """
         self.encoder = encoder
+        if collect_data:
+            self.counter = 1
+            self.arrcounter = 1
+            self.k = 5
+            self.buffer = []
+        self.collect_data = collect_data
 
     def _process_obs(self, obs: dict):
         """Process observation using encoder
@@ -48,6 +54,21 @@ class EnvContainer:
         if env:
             self.env = env
         obs, reward, done, info = self.env.step(action)
+        if self.collect_data:
+            self.counter += 1
+            image = obs["images"]["CameraFrontRGB"]
+            self.buffer.append(image)
+            if done:                
+                nparr = np.stack(self.buffer,axis=0)
+                os.makedirs(f"/mnt/data/collected_data_{self.encoder.__class__.__name__}/",exist_ok=True)
+                np.save(f"/mnt/data/collected_data_{self.encoder.__class__.__name__}/episode_{self.arrcounter}.npy",nparr)
+                print("---------------------------------")
+                print("Saved episode",self.arrcounter)
+                print("---------------------------------")
+                self.arrcounter += 1
+                del nparr
+                self.buffer = []
+                self.counter = 1
         return self._process_obs(obs), reward, done, info
 
     def reset(self, random_pos=False, env=None):

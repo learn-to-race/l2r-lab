@@ -41,6 +41,7 @@ class ModelFreeRunner(BaseRunner):
         max_episode_length: int,
         resume_training: bool = False,
         use_container: bool = True,
+        collect_data: bool = False,
     ):
         """Initialize ModelFreeRunner.
 
@@ -76,7 +77,7 @@ class ModelFreeRunner(BaseRunner):
         self.experiment_name = experiment_name
         self.experiment_state_path = experiment_state_path
         self.resume_training = resume_training
-
+        self.collect_data = collect_data
         if not self.experiment_state_path.endswith(".json"):
             raise ValueError(
                 "Folder or incorrect file type specified. Expected json filename."
@@ -119,7 +120,10 @@ class ModelFreeRunner(BaseRunner):
             self.best_eval_ret = running_vars["current_best_eval_ret"]
 
         if use_container:
-            self.env_wrapped = EnvContainer(self.encoder)
+            if self.collect_data:
+                self.env_wrapped = EnvContainer(self.encoder, collect_data=True)
+            else:
+                self.env_wrapped = EnvContainer(self.encoder)
         else:
             self.env_wrapped = None
 
