@@ -8,5 +8,7 @@ config:
     config:
       use_speed:
         True
+      state_dim:
+        96
   use_speed:
     True

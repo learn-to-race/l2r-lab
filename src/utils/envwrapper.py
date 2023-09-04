@@ -25,15 +25,19 @@ class EnvContainer:
         Returns:
             torch.Tensor: encoded image.
         """
-        obs_camera = obs["images"]["CameraFrontRGB"]
-        obs_encoded = self.encoder.encode(obs_camera).to(DEVICE)
+        obs_camera1 = obs["images"]["CameraFrontRGB"]
+        obs_camera2 = obs["images"]["CameraLeftRGB"]
+        obs_camera3 = obs["images"]["CameraRightRGB"]
+        obs_encoded1 = self.encoder.encode(obs_camera1).to(DEVICE)
+        obs_encoded2 = self.encoder.encode(obs_camera2).to(DEVICE)
+        obs_encoded3 = self.encoder.encode(obs_camera3).to(DEVICE)
         speed = (
             torch.tensor(np.linalg.norm(obs["pose"][3:6], ord=2))
             .to(DEVICE)
             .reshape((-1, 1))
             .float()
         )
-        return torch.cat((obs_encoded, speed), 1).to(DEVICE)
+        return torch.cat((obs_encoded1, obs_encoded2, obs_encoded3, speed), 1).to(DEVICE)
 
     def step(self, action, env=None):
         """Step env.

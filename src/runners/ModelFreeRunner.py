@@ -140,7 +140,7 @@ class ModelFreeRunner(BaseRunner):
         self.wandb_logger = None
         if api_key:
             self.wandb_logger = WanDBLogger(
-                api_key=api_key, project_name="test-project"
+                api_key=api_key, project_name="visual-representation-learning"
             )
         t = 0
         start_idx = self.last_saved_episode
@@ -151,7 +151,8 @@ class ModelFreeRunner(BaseRunner):
                 obs_encoded = self.env_wrapped.reset(True, env)
             else:
                 obs_encoded = env.reset()
-
+            
+            print(obs_encoded.shape)
             ep_ret = 0
             total_reward = 0
             info = None

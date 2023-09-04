@@ -251,6 +251,8 @@ class ActorCritic(nn.Module):
         """
 
         super().__init__()
+        state_dim = 96
+        print(state_dim)
         self.state_dim = state_dim
         obs_dim = state_dim
         act_dim = action_dim

@@ -17,6 +17,20 @@ if __name__ == "__main__":
                 "Width": 512,
                 "Height": 384,
                 "sim_addr": "tcp://0.0.0.0:8008",
+            },
+            {
+                "name": "CameraLeftRGB",
+                "Addr": "tcp://0.0.0.0:8008",
+                "Width": 512,
+                "Height": 384,
+                "sim_addr": "tcp://0.0.0.0:8008",
+            },
+            {
+                "name": "CameraRightRGB",
+                "Addr": "tcp://0.0.0.0:8008",
+                "Width": 512,
+                "Height": 384,
+                "sim_addr": "tcp://0.0.0.0:8008",
             }
         ],
         env_kwargs={
@@ -28,7 +42,7 @@ if __name__ == "__main__":
             "not_moving_timeout": 50000,
             "reward_pol": "custom",
             "provide_waypoints": False,
-            "active_sensors": ["CameraFrontRGB"],
+            "active_sensors": ["CameraFrontRGB", "CameraRightRGB", "CameraLeftRGB"],
             "vehicle_params": False,
         },
         action_cfg={
