@@ -11,9 +11,9 @@ from src.constants import DEVICE
 from src.encoders.base import BaseEncoder
 from src.encoders.transforms.preprocessing import crop_resize_center
 
-
+# Encoder for Edge Detector
 @yamlize
-class VAE(BaseEncoder, torch.nn.Module):
+class CannyEncoder(BaseEncoder, torch.nn.Module):
     """Input should be (bsz, C, H, W) where C=3, H=42, W=144"""
 
     def __init__(
@@ -41,7 +41,8 @@ class VAE(BaseEncoder, torch.nn.Module):
             nn.Flatten(),
         ]
         self.encoder = nn.Sequential(*encoder_list)
-        sample_img = torch.zeros([1, image_channels, image_height, image_width])
+        sample_img = torch.zeros(
+            [1, image_channels, image_height, image_width])
         em_shape = nn.Sequential(*encoder_list[:-1])(sample_img).shape[1:]
         h_dim = np.prod(em_shape)
 
@@ -66,14 +67,14 @@ class VAE(BaseEncoder, torch.nn.Module):
                 64, 32, kernel_size=4, stride=2, padding=1, output_padding=(1, 0)
             ),
             nn.ReLU(),
-            nn.ConvTranspose2d(32, image_channels, kernel_size=4, stride=2, padding=1),
+            nn.ConvTranspose2d(32, image_channels,
+                               kernel_size=4, stride=2, padding=1),
             nn.Sigmoid(),
         )
         if load_checkpoint_from == "":
             logging.info("Not loading any visual encoder checkpoint")
         else:
             self.load_state_dict(torch.load(load_checkpoint_from))
-        # TODO: Figure out where speed encoder should go.
 
     def reparameterize(self, mu, logvar):
         std = logvar.mul(0.5).exp_()

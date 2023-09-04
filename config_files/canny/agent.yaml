@@ -1,0 +1,8 @@
+name: SACAgent
+config:
+  gamma: 0.99
+  polyak: 0.995
+  lr: 0.003
+  alpha: 0.2
+  steps_to_sample_randomly: 1000 # start_steps
+  actor_critic_cfg_path: './config_files/random_enc/network.yaml'
