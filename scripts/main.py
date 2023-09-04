@@ -41,7 +41,7 @@ if __name__ == "__main__":
         },
     )
     runner = create_configurable(
-        "config_files/example_sac/runner.yaml", NameToSourcePath.runner
+        "config_files/collectrandomdata/runner.yaml", NameToSourcePath.runner
     )
 
     with open(
@@ -54,7 +54,7 @@ if __name__ == "__main__":
         import torch
 
         torch.autograd.set_detect_anomaly(True)
-        runner.run(env, sys.argv[3])
+        runner.run(env, sys.argv[1])
     except IndexError as e:
         logging.warning(e)
         runner.run(env, "")

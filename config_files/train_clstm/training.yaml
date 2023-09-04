@@ -1,0 +1,5 @@
+cv_trainer_config:
+  num_epochs: 50
+  lr: 0.001
+  batch_size: 4
+  model_save_path: '/mnt/newclstmmodel/'

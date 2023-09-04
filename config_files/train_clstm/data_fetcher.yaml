@@ -1,0 +1,4 @@
+name: SeqDataFetcher
+config:
+  train_path: '/mnt/newclstmdata/train'
+  val_path: '/mnt/newclstmdata/val'

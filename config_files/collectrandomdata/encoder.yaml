@@ -1,0 +1,3 @@
+name: RandomEncoder
+config:
+        load_checkpoint_from: ''
