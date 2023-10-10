@@ -122,7 +122,7 @@ class IQNAgent(BaseAgent):
         )  # (batch_size, 1, N)
 
         Q_targets = r.unsqueeze(-1).unsqueeze(-1) + (
-            self.gamma ** self.n_step
+            self.gamma**self.n_step
             * Q_targets_next
             * (1.0 - d.unsqueeze(-1).unsqueeze(-1))
         )

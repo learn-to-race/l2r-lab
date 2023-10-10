@@ -29,7 +29,6 @@ class ExpertDemoDataset(torch.utils.data.Dataset):
                 self.imgs.append(crop_resize_center(data))
 
     def __len__(self):
-
         return len(self.imgs)
 
     def __getitem__(self, idx):
