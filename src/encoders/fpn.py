@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torch import nn
 import torch.nn.functional as F
+from typing import List
 from collections import OrderedDict
 from src.encoders.base import BaseEncoder
 from src.config.yamlize import yamlize
@@ -88,7 +89,7 @@ class FPNSegmentation(BaseEncoder, nn.Module):
     def __init__(
         self,
         n_classes: int = 2,
-        fpn_filters: list[int] = [64, 128, 160, 256],
+        fpn_filters: List[int] = [64, 128, 160, 256],
         out_channels: int = 128,
         load_checkpoint_from: str = "",
     ):
