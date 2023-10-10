@@ -185,7 +185,6 @@ class SpatialMPC:
 
         # Iterate over horizon
         for i in range(N):
-
             # Get information about current waypoint
             current_waypoint = reference_path[i]
             # distance between waypoints
@@ -244,7 +243,6 @@ class SpatialMPC:
 
         # Iterate over all waypoints
         for wp_id in range(len(waypoint_coordinates) - 1):
-
             # Get start and goal waypoints
             current_wp = np.array(waypoint_coordinates[wp_id])[:-1]
             next_wp = np.array(waypoint_coordinates[wp_id + 1])[:-1]
@@ -349,7 +347,6 @@ class SpatialMPC:
 
         # Iterate over horizon
         for n in range(self.N):
-
             # Get information about current waypoint
             current_waypoint = reference_path[n]
             delta_s = current_waypoint["dist_ahead"]
@@ -496,7 +493,6 @@ class SpatialMPC:
             self.infeasibility_counter = 0
 
         else:
-
             print("Infeasible problem. Previously predicted" " control signal used!")
             id = nu * (self.infeasibility_counter + 1)
             u = np.array(self.current_control[id : id + 2])

@@ -16,7 +16,6 @@ from src.config.yamlize import yamlize
 
 
 class MPCAgent(BaseAgent):
-
     default_action_space = gym.spaces.Box(-1, 1, (2,))
 
     def __init__(self, action_space=default_action_space):
