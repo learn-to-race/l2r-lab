@@ -121,7 +121,7 @@ class VAE(BaseEncoder, torch.nn.Module):
 
     def loss(self, actual, recon, mu, logvar, kld_weight=1.0):
         bce = F.binary_cross_entropy(recon, actual, reduction="sum")
-        kld = -0.5 * torch.sum(1 + logvar - mu**2 - logvar.exp())
+        kld = -0.5 * torch.sum(1 + logvar - mu ** 2 - logvar.exp())
         return bce + kld * kld_weight
 
     def update(self, batch_of_images):
