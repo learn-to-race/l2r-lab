@@ -1,0 +1,5 @@
+name: IQNAgent
+config:
+  lr: 0.0001
+  steps_to_sample_randomly: 5
+  actor_critic_cfg_path: './config_files/example_iqn/network.yaml'
