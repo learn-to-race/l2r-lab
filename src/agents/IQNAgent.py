@@ -3,6 +3,7 @@ import itertools
 from copy import deepcopy
 
 import torch
+from torch.nn.utils import clip_grad_norm_
 import numpy as np
 from gym.spaces import Box, Discrete
 from torch.optim import Adam
@@ -26,6 +27,8 @@ class IQNAgent(BaseAgent):
         eps: float = 0.1,
         gamma: float = 0.99,
         tau: float = 1e-2,
+        weight_decay: float = 0,
+        num_updates: int = 10,
         n_step: int = 1,
     ):
         """ """
@@ -36,13 +39,14 @@ class IQNAgent(BaseAgent):
         self.gamma = gamma
         self.eps = eps
         self.tau = tau
+        self.num_updates = num_updates
 
         self.t = 0
         self.deterministic = False
 
         self.record = {"transition_actor": ""}
 
-        self.action_space = Discrete(9)
+        self.action_space = Discrete(12)
 
         self.mapper = {  # TODO: PARAMETRIZE
             0: np.array([0.0, 0.0]),
@@ -54,6 +58,9 @@ class IQNAgent(BaseAgent):
             6: np.array([-1.0, 0.0]),
             7: np.array([-1.0, 1.0]),
             8: np.array([-1.0, -1.0]),
+            9: np.array([0.5,0.5]),
+            10: np.array([0.5,0.0]),
+            11: np.array([0.5,-0.5])
         }
         self.reverse = {(v[0], v[1]): k for k, v in self.mapper.items()}
 
@@ -65,7 +72,7 @@ class IQNAgent(BaseAgent):
         self.iqn_target = create_configurable(
             network_cfg_path, NameToSourcePath.network
         ).to(DEVICE)
-        self.optimizer = Adam(self.iqn_local.parameters(), lr=self.lr)
+        self.optimizer = Adam(self.iqn_local.parameters(), lr=self.lr, weight_decay=weight_decay )
 
     def select_action(self, obs) -> np.array:
         """Select action given observation array.
@@ -169,12 +176,13 @@ class IQNAgent(BaseAgent):
 
         # Minimize the loss
         loss.backward()
-        # clip_grad_norm_(self.qnetwork_local.parameters(),1)
+        print(loss.item())
+        clip_grad_norm_(self.iqn_local.parameters(),1)
         self.optimizer.step()
 
-        print("IQN LOSS:", loss.item())
         # ------------------- update target network ------------------- #
         self._soft_update()
+        return loss.item()
 
     def _soft_update(self):
         """Exponential average for double q network."""

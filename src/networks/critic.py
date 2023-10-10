@@ -343,7 +343,7 @@ class IQN(nn.Module):
     def __init__(
         self,
         state_size: int = 32,
-        action_size: int = 9,
+        action_size: int = 12,
         tau_num: int = 32,
         n_cos: int = 64,
         hidden_size: int = 64,

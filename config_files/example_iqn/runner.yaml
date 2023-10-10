@@ -9,8 +9,8 @@ config:
   num_test_episodes: 1
   num_run_episodes: 510000000
   save_every_nth_episode: 100
-  update_model_after: 1 # update_after steps
-  update_model_every: 1 # update_every
+  update_model_after: 100 # update_after steps
+  update_model_every: 10 # update_every
   eval_every: 20
   max_episode_length: 50000 # max_ep_len
   use_container: True

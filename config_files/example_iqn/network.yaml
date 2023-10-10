@@ -2,3 +2,4 @@ name:
   IQN
 config:
   use_speed: True
+  hidden_size: 128
