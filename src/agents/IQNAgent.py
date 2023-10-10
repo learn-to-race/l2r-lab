@@ -23,6 +23,7 @@ class IQNAgent(BaseAgent):
         steps_to_sample_randomly: int,
         lr: float,
         network_cfg_path: str = "",
+        eps: float = 0.1
     ):
         """
         
@@ -50,11 +51,13 @@ class IQNAgent(BaseAgent):
             8: np.array([-1.0, -1.0]),
         }
 
-        self.act_dim = self.action_space.shape[0]
+        self.act_dim = self.action_space.n
 
         self.iqn_local = create_configurable( network_cfg_path, NameToSourcePath.network).to(DEVICE)
         self.iqn_target = create_configurable( network_cfg_path, NameToSourcePath.network).to(DEVICE)
         self.optimizer = Adam(self.iqn_local.parameters(), lr=self.lr)
+
+        self.eps = eps
 
     def select_action(self, obs) -> np.array:
         """Select action given observation array.
@@ -67,17 +70,22 @@ class IQNAgent(BaseAgent):
         """
         action_obj = ActionSample()
         if self.t > self.steps_to_sample_randomly:
-            # Do some thingss
             self.iqn_local.eval()
             with torch.no_grad():
-                obs = torch.FloatTensor(obs).to(DEVICE)
+                print(type(obs),obs)
+                obs = torch.Tensor(obs).to(DEVICE)
                 action, _ = self.iqn_local(obs)
                 action = action.mean(dim=1)
                 action = action.cpu().numpy()
-                action_obj.action = np.argmax(action) if self.deterministic else np.random.choice(np.arange(action))
+                if self.deterministic or np.random.uniform(0,1) >= self.eps:
+                    action_obj.action = np.argmax(action)
+                else:
+                    action_obj.action = self.action_space.sample()
 
         else:
             action_obj.action = self.action_space.sample()
+        
+        action_obj.action = self.mapper[int(action_obj.action)]
 
         self.t = self.t + 1
         return action_obj
@@ -128,6 +136,7 @@ class IQNAgent(BaseAgent):
         #clip_grad_norm_(self.qnetwork_local.parameters(),1)
         self.optimizer.step()
 
+        print("IQN LOSS:",loss.item())
         # ------------------- update target network ------------------- #
         self.soft_update(self.qnetwork_local, self.qnetwork_target)
 

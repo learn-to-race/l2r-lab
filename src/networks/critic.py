@@ -341,7 +341,7 @@ class IQN(nn.Module):
     """
     def __init__(self, state_size: int = 32, action_size: int = 9, tau_num: int = 32, n_cos: int = 64, hidden_size: int = 64, speed_encoder_hiddens: List[int] = [8, 8], use_speed: bool = True):
         super(IQN, self).__init__()
-        self.input_shape = state_size
+        self.state_dim = state_size
         self.action_size = action_size
         self.K = tau_num
         self.n_cos = n_cos
@@ -357,9 +357,9 @@ class IQN(nn.Module):
 
         if self.use_speed:
             self.speed_encoder = mlp([1] + speed_encoder_hiddens)
-            self.head = nn.Linear(self.input_shape[0] + speed_encoder_hiddens[-1], hidden_size) 
+            self.head = nn.Linear(self.state_dim + speed_encoder_hiddens[-1], hidden_size) 
         else:
-            self.head = nn.Linear(self.input_shape[0], hidden_size)
+            self.head = nn.Linear(self.state_dim, hidden_size)
 
     def _calc_cos(self, batch_size):
         """
@@ -389,7 +389,7 @@ class IQN(nn.Module):
             img_embed = input[..., : self.state_dim]
         
         x = torch.relu(self.head(input))
-        cos, taus = self.calc_cos(batch_size, self.K) # cos shape (batch, num_tau, layer_size)
+        cos, taus = self._calc_cos(batch_size) # cos shape (batch, num_tau, layer_size)
         cos = cos.view(batch_size*self.K, self.n_cos)
         cos_x = torch.relu(self.cos_embedding(cos)).view(batch_size, self.K, self.layer_size) # (batch, n_tau, layer)
         
