@@ -145,7 +145,6 @@ class ModelFreeRunner(BaseRunner):
         t = 0
         start_idx = self.last_saved_episode
         for ep_number in range(start_idx + 1, self.num_run_episodes + 1):
-
             done = False
             if self.env_wrapped:
                 obs_encoded = self.env_wrapped.reset(True, env)
@@ -241,7 +240,6 @@ class ModelFreeRunner(BaseRunner):
         # assert self.cfg["num_test_episodes"] == 1
 
         for j in range(self.num_test_episodes):
-
             if self.env_wrapped:
                 eval_obs_encoded = self.env_wrapped.reset()
             else:
