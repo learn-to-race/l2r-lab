@@ -58,9 +58,9 @@ class IQNAgent(BaseAgent):
             6: np.array([-0.5, 0.0]),
             7: np.array([-0.5, 0.5]),
             8: np.array([-0.5, -0.5]),
-            9: np.array([0.25,0.25]),
-            10: np.array([0.25,0.0]),
-            11: np.array([0.25,-0.25])
+            9: np.array([0.25, 0.25]),
+            10: np.array([0.25, 0.0]),
+            11: np.array([0.25, -0.25]),
         }
         self.reverse = {(v[0], v[1]): k for k, v in self.mapper.items()}
 
@@ -72,7 +72,9 @@ class IQNAgent(BaseAgent):
         self.iqn_target = create_configurable(
             network_cfg_path, NameToSourcePath.network
         ).to(DEVICE)
-        self.optimizer = Adam(self.iqn_local.parameters(), lr=self.lr, weight_decay=weight_decay )
+        self.optimizer = Adam(
+            self.iqn_local.parameters(), lr=self.lr, weight_decay=weight_decay
+        )
 
     def select_action(self, obs) -> np.array:
         """Select action given observation array.
@@ -177,7 +179,7 @@ class IQNAgent(BaseAgent):
         # Minimize the loss
         loss.backward()
         print(loss.item())
-        clip_grad_norm_(self.iqn_local.parameters(),1)
+        clip_grad_norm_(self.iqn_local.parameters(), 1)
         self.optimizer.step()
 
         # ------------------- update target network ------------------- #

@@ -28,7 +28,7 @@ class EnvContainer:
             torch.Tensor: encoded image.
         """
         obs_camera = obs["images"]["CameraFrontRGB"]
-        obs2 = np.transpose(obs_camera,(2,0,1))
+        obs2 = np.transpose(obs_camera, (2, 0, 1))
         self.image_list.append(obs2)
         obs_encoded = self.encoder.encode(obs_camera).to(DEVICE)
         speed = (
@@ -36,7 +36,7 @@ class EnvContainer:
             .to(DEVICE)
             .reshape((-1, 1))
             .float()
-        )/100.0
+        ) / 100.0
         return torch.cat((obs_encoded, speed), 1).to(DEVICE)
 
     def step(self, action, env=None):
@@ -66,7 +66,13 @@ class EnvContainer:
             next_obs: Encoded next observation.
         """
         if len(self.image_list) > 0:
-            wandb.log({"Episode Video": wandb.Video(np.stack(self.image_list), fps=8, format='gif')})
+            wandb.log(
+                {
+                    "Episode Video": wandb.Video(
+                        np.stack(self.image_list), fps=8, format="gif"
+                    )
+                }
+            )
             self.image_list = []
         if env:
             self.env = env

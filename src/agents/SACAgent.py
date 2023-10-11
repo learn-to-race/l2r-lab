@@ -225,3 +225,4 @@ class SACAgent(BaseAgent):
                 # params, as opposed to "mul" and "add", which would make new tensors.
                 p_targ.data.mul_(self.polyak)
                 p_targ.data.add_((1 - self.polyak) * p.data)
+        return (loss_pi, loss_q)

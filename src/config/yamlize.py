@@ -118,6 +118,7 @@ def yamlize(configurable_class):
             raise ValueError(config_dict) from e
 
     configurable_class.instantiate_from_config = classmethod(init_from_config)
+
     def get_config_dict(cls, config_file_location):
         """Initialize complete_config_dict from config file
 
@@ -190,6 +191,7 @@ def create_configurable(config_yaml, name_to_path):
 
     return cls.instantiate_from_config_dict(config_dict["config"])
 
+
 def get_configurable_dict(config_yaml, name_to_path):
     """Create configurable dict from config file path and source location
 
@@ -206,9 +208,10 @@ def get_configurable_dict(config_yaml, name_to_path):
         yaml_contents = mf.read()
         config_dict = sl.load(yaml_contents, schema).data
     cls = getattr(importlib.import_module(name_to_path), config_dict["name"])
-    return {'name': config_dict['name'], 'contents': cls.get_config_dict(config_dict['config'])}
-
-
+    return {
+        "name": config_dict["name"],
+        "contents": cls.get_config_dict(config_dict["config"]),
+    }
 
 
 def create_configurable_from_dict(config_dict, name_to_path):
