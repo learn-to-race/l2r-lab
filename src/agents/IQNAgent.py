@@ -27,7 +27,7 @@ class IQNAgent(BaseAgent):
         eps: float = 0.1,
         gamma: float = 0.99,
         tau: float = 1e-2,
-        weight_decay: float = 0,
+        weight_decay: float = 1e-2,
         num_updates: int = 10,
         n_step: int = 1,
     ):
@@ -50,17 +50,17 @@ class IQNAgent(BaseAgent):
 
         self.mapper = {  # TODO: PARAMETRIZE
             0: np.array([0.0, 0.0]),
-            1: np.array([0.0, 1.0]),
-            2: np.array([0.0, -1.0]),
-            3: np.array([1.0, 0.0]),
-            4: np.array([1.0, 1.0]),
-            5: np.array([1.0, -1.0]),
-            6: np.array([-1.0, 0.0]),
-            7: np.array([-1.0, 1.0]),
-            8: np.array([-1.0, -1.0]),
-            9: np.array([0.5,0.5]),
-            10: np.array([0.5,0.0]),
-            11: np.array([0.5,-0.5])
+            1: np.array([0.0, 0.5]),
+            2: np.array([0.0, -0.5]),
+            3: np.array([0.5, 0.0]),
+            4: np.array([0.5, 0.5]),
+            5: np.array([0.5, -0.5]),
+            6: np.array([-0.5, 0.0]),
+            7: np.array([-0.5, 0.5]),
+            8: np.array([-0.5, -0.5]),
+            9: np.array([0.25,0.25]),
+            10: np.array([0.25,0.0]),
+            11: np.array([0.25,-0.25])
         }
         self.reverse = {(v[0], v[1]): k for k, v in self.mapper.items()}
 

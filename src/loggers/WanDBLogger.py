@@ -9,7 +9,7 @@ from datetime import datetime
 class WanDBLogger(BaseLogger):
     """Wandb Logger Wrapper."""
 
-    def __init__(self, api_key: str, project_name: str) -> None:
+    def __init__(self, api_key: str, project_name: str, config: dict = {}) -> None:
         """Create Weights and Biases Logger
 
         Args:
@@ -18,7 +18,7 @@ class WanDBLogger(BaseLogger):
         """
         # super().__init__(log_dir, experiment_name)
         wandb.login(key=api_key)
-        wandb.init(project=project_name, entity="learn2race")
+        wandb.init(project=project_name, entity="learn2race", config=config)
 
     def log(self, data):
         """Log metrics to WandB, using names present in dict.

@@ -118,7 +118,32 @@ def yamlize(configurable_class):
             raise ValueError(config_dict) from e
 
     configurable_class.instantiate_from_config = classmethod(init_from_config)
-    print(configurable_class)
+    def get_config_dict(cls, config_file_location):
+        """Initialize complete_config_dict from config file
+
+        Args:
+            config_file_location (Union[str,dict]): Path to config file, or config dict
+
+        Raises:
+            ValueError: Error loading file
+
+        Returns:
+            cls: object from class.
+        """
+        if isinstance(config_file_location, dict):
+            config_yamlized = yaml.dump(config_file_location)
+            config_dict = sl.load(config_yamlized, schema).data
+            return config_dict
+
+        with open(config_file_location, "r") as mf:
+            yaml_str = mf.read()
+        try:
+            config_dict = sl.load(yaml_str, schema).data
+        except Exception as e:
+            raise ValueError(yaml_str, schema, e)
+        return config_dict
+
+    configurable_class.get_config_dict = classmethod(get_config_dict)
     return configurable_class
 
 
@@ -164,6 +189,26 @@ def create_configurable(config_yaml, name_to_path):
     cls = getattr(importlib.import_module(name_to_path), config_dict["name"])
 
     return cls.instantiate_from_config_dict(config_dict["config"])
+
+def get_configurable_dict(config_yaml, name_to_path):
+    """Create configurable dict from config file path and source location
+
+    Args:
+        config_yaml (str): Config yaml location
+        name_to_path (NameToSourcePath): Map from class type to source location
+
+    Returns:
+        dict: Config Dict
+    """
+    name_to_path = str(name_to_path.value)
+    schema = sl.Map({"name": sl.Str(), "config": sl.Any()})
+    with open(config_yaml, "r") as mf:
+        yaml_contents = mf.read()
+        config_dict = sl.load(yaml_contents, schema).data
+    cls = getattr(importlib.import_module(name_to_path), config_dict["name"])
+    return {'name': config_dict['name'], 'contents': cls.get_config_dict(config_dict['config'])}
+
+
 
 
 def create_configurable_from_dict(config_dict, name_to_path):

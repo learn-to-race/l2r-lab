@@ -4,13 +4,15 @@ import time
 from matplotlib.font_manager import json_dump
 import numpy as np
 import wandb
+import os
+import yaml
 from src.loggers.WanDBLogger import WanDBLogger
 from src.runners.base import BaseRunner
 from src.utils.envwrapper import EnvContainer
 from src.loggers.TensorboardLogger import TensorboardLogger
 from src.loggers.FileLogger import FileLogger
 
-from src.config.yamlize import create_configurable, NameToSourcePath, yamlize
+from src.config.yamlize import create_configurable, NameToSourcePath, yamlize, get_configurable_dict
 from src.constants import DEVICE
 
 from torch.optim import Adam
@@ -18,6 +20,7 @@ import gym
 import torch
 import itertools
 import jsonpickle
+import glob
 
 
 @yamlize
@@ -25,23 +28,23 @@ class ModelFreeRunner(BaseRunner):
     """Main configurable runner."""
 
     def __init__(
-        self,
-        agent_config_path: str,
-        buffer_config_path: str,
-        encoder_config_path: str,
-        model_save_dir: str,
-        experiment_name: str,
-        experiment_state_path: str,
-        num_test_episodes: int,
-        num_run_episodes: int,
-        save_every_nth_episode: int,
-        update_model_after: int,
-        update_model_every: int,
-        eval_every: int,
-        max_episode_length: int,
-        resume_training: bool = False,
-        use_container: bool = True,
-    ):
+            self,
+            agent_config_path: str,
+            buffer_config_path: str,
+            encoder_config_path: str,
+            model_save_dir: str,
+            experiment_name: str,
+            experiment_state_path: str,
+            num_test_episodes: int,
+            num_run_episodes: int,
+            save_every_nth_episode: int,
+            update_model_after: int,
+            update_model_every: int,
+            eval_every: int,
+            max_episode_length: int,
+            resume_training: bool = False,
+            use_container: bool = True,
+            ):
         """Initialize ModelFreeRunner.
 
         Args:
@@ -79,30 +82,30 @@ class ModelFreeRunner(BaseRunner):
 
         if not self.experiment_state_path.endswith(".json"):
             raise ValueError(
-                "Folder or incorrect file type specified. Expected json filename."
-            )
+                    "Folder or incorrect file type specified. Expected json filename."
+                    )
 
-        ## AGENT Declaration
+            ## AGENT Declaration
         self.agent = create_configurable(agent_config_path, NameToSourcePath.agent)
 
         ## LOGGER Declaration
         self.tb_logger_obj = TensorboardLogger(
-            self.model_save_dir, self.experiment_name
-        )
+                self.model_save_dir, self.experiment_name
+                )
         self.file_logger = FileLogger(self.model_save_dir, self.experiment_name)
         self.file_logger.log_obj.info("Using random seed: {}".format(0))
 
         ## ENCODER Declaration
         self.encoder = create_configurable(
-            encoder_config_path, NameToSourcePath.encoder
-        )
+                encoder_config_path, NameToSourcePath.encoder
+                )
         self.encoder.to(DEVICE)
 
         ## BUFFER Declaration
         if not self.resume_training:
             self.replay_buffer = create_configurable(
-                buffer_config_path, NameToSourcePath.buffer
-            )
+                    buffer_config_path, NameToSourcePath.buffer
+                    )
             self.best_ret = 0
             self.last_saved_episode = 0
             self.best_eval_ret = 0
@@ -123,6 +126,8 @@ class ModelFreeRunner(BaseRunner):
         else:
             self.env_wrapped = None
 
+        self.configs = { 'agent':get_configurable_dict(agent_config_path, NameToSourcePath.agent), 'encoder':get_configurable_dict(encoder_config_path, NameToSourcePath.encoder), 'buffer': get_configurable_dict(buffer_config_path, NameToSourcePath.buffer), 'update_model_after': update_model_after, 'update_model_every': update_model_every, 'eval_every': eval_every }
+
         ## WANDB Declaration
         """self.wandb_logger = None
         if self.api_key:
@@ -140,9 +145,9 @@ class ModelFreeRunner(BaseRunner):
         self.wandb_logger = None
         if api_key:
             self.wandb_logger = WanDBLogger(
-                api_key=api_key, project_name="test-project"
-            )
-        t = 0
+                    api_key=api_key, project_name="test-project", config=self.configs
+                    )
+            t = 0
         start_idx = self.last_saved_episode
         for ep_number in range(start_idx + 1, self.num_run_episodes + 1):
             done = False
@@ -160,32 +165,40 @@ class ModelFreeRunner(BaseRunner):
                 action_obj = self.agent.select_action(obs_encoded)
                 if self.env_wrapped:
                     obs_encoded_new, reward, done, info = self.env_wrapped.step(
-                        action_obj.action
-                    )
+                            action_obj.action
+                            )
                 else:
                     obs_encoded_new, reward, done, info = env.step(action_obj.action)
 
                 ep_ret += reward
                 # self.file_logger.log(f"reward: {reward}")
                 self.replay_buffer.store(
-                    {
-                        "obs": obs_encoded,
-                        "act": action_obj,
-                        "rew": reward,
-                        "next_obs": obs_encoded_new,
-                        "done": done,
-                    }
-                )
+                        {
+                            "obs": obs_encoded,
+                            "act": action_obj,
+                            "rew": reward,
+                            "next_obs": obs_encoded_new,
+                            "done": done,
+                            }
+                        )
                 if done or t == self.max_episode_length:
                     self.replay_buffer.finish_path(action_obj)
 
                 obs_encoded = obs_encoded_new
                 if (t >= self.update_model_after) and (
-                    t % self.update_model_every == 0
-                ):
-                    for _ in range(self.update_model_every):
+                        t % self.update_model_every == 0
+                        ):
+                    loss = 1000
+                    iter_count = 0
+                    while iter_count < 10:
+                        iter_count += 1
                         batch = self.replay_buffer.sample_batch()
-                        self.agent.update(data=batch)
+                        loss = self.agent.update(data=batch)
+                    if iter_count < 10:
+                        for _ in range(10-iter_count):
+                            batch = self.replay_buffer.sample_batch()
+                            loss = self.agent.update(data=batch)
+                    self.wandb_logger.log({'Loss':loss})
 
             if ep_number % self.eval_every == 0:
                 self.file_logger.log(f"Episode Number before eval: {ep_number}")
@@ -196,32 +209,32 @@ class ModelFreeRunner(BaseRunner):
 
             if self.wandb_logger:
                 self.wandb_logger.log(
-                    {
-                        "reward": ep_ret,
-                        "Distance": info["metrics"]["total_distance"],
-                        "Time": info["metrics"]["total_time"],
-                        "Num infractions": info["metrics"]["num_infractions"],
-                        "Average Speed KPH": info["metrics"]["average_speed_kph"],
-                        "Average Displacement Error": info["metrics"][
-                            "average_displacement_error"
-                        ],
-                        "Trajectory Efficiency": info["metrics"][
-                            "trajectory_efficiency"
-                        ],
-                        "Trajectory Admissability": info["metrics"][
-                            "trajectory_admissibility"
-                        ],
-                        "Movement Smoothness": info["metrics"]["movement_smoothness"],
-                        "Timestep per Sec": info["metrics"]["timestep/sec"],
-                        "Laps Completed": info["metrics"]["laps_completed"],
-                    }
-                )
+                        {
+                            "reward": ep_ret,
+                            "Distance": info["metrics"]["total_distance"],
+                            "Time": info["metrics"]["total_time"],
+                            "Num infractions": info["metrics"]["num_infractions"],
+                            "Average Speed KPH": info["metrics"]["average_speed_kph"],
+                            "Average Displacement Error": info["metrics"][
+                                "average_displacement_error"
+                                ],
+                            "Trajectory Efficiency": info["metrics"][
+                                "trajectory_efficiency"
+                                ],
+                            "Trajectory Admissability": info["metrics"][
+                                "trajectory_admissibility"
+                                ],
+                            "Movement Smoothness": info["metrics"]["movement_smoothness"],
+                            "Timestep per Sec": info["metrics"]["timestep/sec"],
+                            "Laps Completed": info["metrics"]["laps_completed"],
+                            }
+                        )
 
-            self.file_logger.log(f"Episode Number after WanDB call: {ep_number}")
+                self.file_logger.log(f"Episode Number after WanDB call: {ep_number}")
             self.file_logger.log(f"info: {info}")
             self.file_logger.log(
-                f"Episode {ep_number}: Current return: {ep_ret}, Previous best return: {self.best_ret}"
-            )
+                    f"Episode {ep_number}: Current return: {ep_ret}, Previous best return: {self.best_ret}"
+                    )
             self.checkpoint_model(ep_ret, ep_number)
 
     def eval(self, env):
@@ -246,12 +259,12 @@ class ModelFreeRunner(BaseRunner):
                 eval_obs_encoded = env.reset()
 
             eval_done, eval_ep_ret, eval_ep_len, eval_n_val_steps, self.metadata = (
-                False,
-                0,
-                0,
-                0,
-                {},
-            )
+                    False,
+                    0,
+                    0,
+                    0,
+                    {},
+                    )
             experience, t_eval = [], 0
 
             while (not eval_done) & (eval_ep_len <= self.max_episode_length):
@@ -262,17 +275,17 @@ class ModelFreeRunner(BaseRunner):
                 eval_action_obj = self.agent.select_action(eval_obs_encoded)
                 if self.env_wrapped:
                     (
-                        eval_obs_encoded_new,
-                        eval_reward,
-                        eval_done,
-                        eval_info,
-                    ) = self.env_wrapped.step(eval_action_obj.action)
+                            eval_obs_encoded_new,
+                            eval_reward,
+                            eval_done,
+                            eval_info,
+                            ) = self.env_wrapped.step(eval_action_obj.action)
                 else:
                     eval_obs_encoded_new, eval_reward, eval_done, eval_info = env.step(
-                        eval_action_obj.action, encode=True
-                    )
+                            eval_action_obj.action, encode=True
+                            )
 
-                # Check that the camera is turned on
+                    # Check that the camera is turned on
                 eval_ep_ret += eval_reward
                 eval_ep_len += 1
                 eval_n_val_steps += 1
@@ -284,59 +297,59 @@ class ModelFreeRunner(BaseRunner):
 
             val_ep_rets.append(eval_ep_ret)
             self.tb_logger_obj.log(
-                {
-                    "val/episodic_return": eval_ep_ret,
-                    "val/ep_n_steps": eval_n_val_steps,
-                    "val/ep_pct_complete": eval_info["metrics"]["pct_complete"],
-                    "val/ep_total_time": eval_info["metrics"]["total_time"],
-                    "val/ep_total_distance": eval_info["metrics"]["total_distance"],
-                    "val/ep_avg_speed": eval_info["metrics"]["average_speed_kph"],
-                    "val/ep_avg_disp_err": eval_info["metrics"][
-                        "average_displacement_error"
-                    ],
-                    "val/ep_traj_efficiency": eval_info["metrics"][
-                        "trajectory_efficiency"
-                    ],
-                    "val/ep_traj_admissibility": eval_info["metrics"][
-                        "trajectory_admissibility"
-                    ],
-                    "val/movement_smoothness": eval_info["metrics"][
-                        "movement_smoothness"
-                    ],
-                },
-                eval_n_val_steps,
-            )
+                    {
+                        "val/episodic_return": eval_ep_ret,
+                        "val/ep_n_steps": eval_n_val_steps,
+                        "val/ep_pct_complete": eval_info["metrics"]["pct_complete"],
+                        "val/ep_total_time": eval_info["metrics"]["total_time"],
+                        "val/ep_total_distance": eval_info["metrics"]["total_distance"],
+                        "val/ep_avg_speed": eval_info["metrics"]["average_speed_kph"],
+                        "val/ep_avg_disp_err": eval_info["metrics"][
+                            "average_displacement_error"
+                            ],
+                        "val/ep_traj_efficiency": eval_info["metrics"][
+                            "trajectory_efficiency"
+                            ],
+                        "val/ep_traj_admissibility": eval_info["metrics"][
+                            "trajectory_admissibility"
+                            ],
+                        "val/movement_smoothness": eval_info["metrics"][
+                            "movement_smoothness"
+                            ],
+                        },
+                    eval_n_val_steps,
+                    )
 
             if self.wandb_logger:
                 self.wandb_logger.log(
-                    {
-                        "Eval reward": eval_ep_ret,
-                        "Eval Distance": eval_info["metrics"]["total_distance"],
-                        "Eval Time": eval_info["metrics"]["total_time"],
-                        "Eval Num infractions": eval_info["metrics"]["num_infractions"],
-                        "Evaluation Speed (KPH)": eval_info["metrics"][
-                            "average_speed_kph"
-                        ],
-                        "Eval Average Displacement Error": eval_info["metrics"][
-                            "average_displacement_error"
-                        ],
-                        "Eval Trajectory Efficiency": eval_info["metrics"][
-                            "trajectory_efficiency"
-                        ],
-                        "Eval Trajectory Admissability": eval_info["metrics"][
-                            "trajectory_admissibility"
-                        ],
-                        "Eval Movement Smoothness": eval_info["metrics"][
-                            "movement_smoothness"
-                        ],
-                        "Eval Timesteps per second": eval_info["metrics"][
-                            "timestep/sec"
-                        ],
-                        "Eval Laps completed": eval_info["metrics"]["laps_completed"],
-                    }
-                )
+                        {
+                            "Eval reward": eval_ep_ret,
+                            "Eval Distance": eval_info["metrics"]["total_distance"],
+                            "Eval Time": eval_info["metrics"]["total_time"],
+                            "Eval Num infractions": eval_info["metrics"]["num_infractions"],
+                            "Evaluation Speed (KPH)": eval_info["metrics"][
+                                "average_speed_kph"
+                                ],
+                            "Eval Average Displacement Error": eval_info["metrics"][
+                                "average_displacement_error"
+                                ],
+                            "Eval Trajectory Efficiency": eval_info["metrics"][
+                                "trajectory_efficiency"
+                                ],
+                            "Eval Trajectory Admissability": eval_info["metrics"][
+                                "trajectory_admissibility"
+                                ],
+                            "Eval Movement Smoothness": eval_info["metrics"][
+                                "movement_smoothness"
+                                ],
+                            "Eval Timesteps per second": eval_info["metrics"][
+                                "timestep/sec"
+                                ],
+                            "Eval Laps completed": eval_info["metrics"]["laps_completed"],
+                            }
+                        )
 
-            # TODO: add back - info no longer contains "pct_complete"
+                # TODO: add back - info no longer contains "pct_complete"
 
             # self.agent.update_best_pct_complete(info)
         return max(val_ep_rets)
@@ -368,11 +381,11 @@ class ModelFreeRunner(BaseRunner):
             Exception: Must specify experiment state path
         """
         running_variables = {
-            "last_saved_episode": ep_number,
-            "current_best_ret": self.best_ret,
-            "buffer": self.replay_buffer,
-            "current_best_eval_ret": self.best_eval_ret,
-        }
+                "last_saved_episode": ep_number,
+                "current_best_ret": self.best_ret,
+                "buffer": self.replay_buffer,
+                "current_best_eval_ret": self.best_eval_ret,
+                }
 
         if self.experiment_state_path:
             # encoded = jsonpickle.encode(self)
