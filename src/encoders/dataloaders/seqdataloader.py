@@ -10,56 +10,32 @@ import cv2
 from collections import OrderedDict
 from src.encoders.dataloaders.base import BaseDataFetcher
 from src.config.yamlize import yamlize
-
+from tqdm import tqdm
 
 class SeqDataset(Dataset):
     def __init__(self, data_path):
         self.data_path = data_path
         self.files = os.listdir(data_path)
-        self.data = []
-        for file_name in self.files:
-            file_path = os.path.join(data_path, file_name)
-            data = np.load(file_path)
-            self.data.append(data)
+        self.cumulative_lengths = [0]
+        for file_name in tqdm(self.files,desc='Loading data'):
+            data = np.load(os.path.join(data_path, file_name))
+            self.cumulative_lengths.append(len(data) + self.cumulative_lengths[-1] - 9)
 
-        self.lengths = [len(data) - 9 for data in self.data]
-        self.cumulative_lengths = np.cumsum(self.lengths)
+        self.total_length = self.cumulative_lengths[-1]
 
-    # def load_folder(self, folder):
-    #     rgb_img_path = os.path.join(folder, "rgb_imgs")
-    #     segm_img_path = os.path.join(folder, "segm_imgs")
-    #     out = []
-    #     for i in os.listdir(rgb_img_path):
-    #         r = os.path.join(rgb_img_path, i)
-    #         s = os.path.join(segm_img_path, i)
-    #         if not os.path.isfile(s):
-    #             continue
-    #         out.append((r, s))
-    #     return out
+    def find_file_and_index(self, idx):
+        file_index = np.searchsorted(self.cumulative_lengths, idx + 1) - 1
+        if file_index < 0:
+            file_index = 0
+        return file_index, idx - self.cumulative_lengths[file_index]
 
     def __len__(self):
-        return self.cumulative_lengths[-1]
-
-    # def prepare_rgb(self, img_path):
-    #     img = cv2.imread(img_path)
-    #     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    #     x = np.array(cv2.resize(img, (512, 384)))
-    #     x = torch.Tensor(x.transpose(2, 0, 1)) / 255
-    #     return x
-
-    # def prepare_segm(self, img_path):
-    #     img = cv2.imread(img_path)
-    #     mask = np.where(img == (109, 80, 204), 1, 0).astype(np.uint8)
-    #     mask = cv2.resize(mask, (512, 384))[:, :, 1]
-    #     mask = torch.Tensor(mask)
-    #     return mask
+        return self.total_length
 
     def __getitem__(self, idx):
-        file_index = np.searchsorted(self.cumulative_lengths, idx + 1)
-        if file_index > 0:
-            idx -= self.cumulative_lengths[file_index - 1]
-
-        data = self.data[file_index]
+        file_index, idx = self.find_file_and_index(idx)
+        file_name = self.files[file_index]
+        data = np.load(os.path.join(self.data_path, file_name))
         start = idx
         end = idx + 10
         return torch.from_numpy(data[start:end]).float()

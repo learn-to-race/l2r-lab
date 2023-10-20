@@ -41,7 +41,7 @@ if __name__ == "__main__":
         },
     )
     runner = create_configurable(
-        "config_files/collectrandomdata/runner.yaml", NameToSourcePath.runner
+        "config_files/collectdata/runner.yaml", NameToSourcePath.runner
     )
 
     with open(

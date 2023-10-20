@@ -4,6 +4,8 @@ import torch
 import itertools
 from src.constants import DEVICE
 import os
+import json
+
 
 class EnvContainer:
     """Container for the pip-installed L2R Environment."""
@@ -20,6 +22,7 @@ class EnvContainer:
             self.arrcounter = 1
             self.k = 5
             self.buffer = []
+            self.infobuffer = []
         self.collect_data = collect_data
 
     def _process_obs(self, obs: dict):
@@ -58,16 +61,20 @@ class EnvContainer:
             self.counter += 1
             image = obs["images"]["CameraFrontRGB"]
             self.buffer.append(image)
+            self.infobuffer.append(info)
             if done:                
                 nparr = np.stack(self.buffer,axis=0)
                 os.makedirs(f"/mnt/data/collected_data_{self.encoder.__class__.__name__}/",exist_ok=True)
                 np.save(f"/mnt/data/collected_data_{self.encoder.__class__.__name__}/episode_{self.arrcounter}.npy",nparr)
+                with open(f"/mnt/data/collected_data_{self.encoder.__class__.__name__}/episode_{self.arrcounter}_info.json", "w") as json_file:
+                    json.dump(self.infobuffer, json_file)
                 print("---------------------------------")
                 print("Saved episode",self.arrcounter)
                 print("---------------------------------")
                 self.arrcounter += 1
                 del nparr
                 self.buffer = []
+                self.infobuffer = []
                 self.counter = 1
         return self._process_obs(obs), reward, done, info
 

@@ -1,0 +1,4 @@
+name: FPNSegmentation
+config:
+  out_channels: 128
+  load_checkpoint_from: '/mnt/fpn_best.pth'

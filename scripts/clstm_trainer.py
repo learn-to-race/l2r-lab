@@ -76,6 +76,7 @@ if __name__ == "__main__":
             # else:
             #     loss = encoder.loss(batch, encoder(batch))
             x = batch[:,:-1]
+            # TODO: If the last batch doesn't contain 10 elements, it will be skipped. This could be important later.
             if x.shape[0] != bsz:
                 continue
             y = batch[:,-1:]
