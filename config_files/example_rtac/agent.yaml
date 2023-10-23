@@ -1,0 +1,8 @@
+name: RTACAgent
+config:
+  gamma: 0.99
+  polyak: 0.995
+  lr: 0.0003
+  alpha: 0.2
+  steps_to_sample_randomly: 10000 # start_steps
+  model_cfg_path: './config_files/example_sac/network.yaml'

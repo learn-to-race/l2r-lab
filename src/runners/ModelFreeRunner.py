@@ -188,17 +188,9 @@ class ModelFreeRunner(BaseRunner):
                 if (t >= self.update_model_after) and (
                         t % self.update_model_every == 0
                         ):
-                    loss = 1000
-                    iter_count = 0
-                    while iter_count < 10:
-                        iter_count += 1
+                    for _ in range(self.update_model_every):
                         batch = self.replay_buffer.sample_batch()
                         loss = self.agent.update(data=batch)
-                    if iter_count < 10:
-                        for _ in range(10-iter_count):
-                            batch = self.replay_buffer.sample_batch()
-                            loss = self.agent.update(data=batch)
-                    self.wandb_logger.log({'Loss':loss})
 
             if ep_number % self.eval_every == 0:
                 self.file_logger.log(f"Episode Number before eval: {ep_number}")

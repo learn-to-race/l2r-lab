@@ -17,6 +17,7 @@ class EnvContainer:
         """
         self.encoder = encoder
         self.image_list = []
+        self.action_last = np.array([0.0, 0.0])
 
     def _process_obs(self, obs: dict):
         """Process observation using encoder
@@ -30,14 +31,8 @@ class EnvContainer:
         obs_camera = obs["images"]["CameraFrontRGB"]
         obs2 = np.transpose(obs_camera,(2,0,1))
         self.image_list.append(obs2)
-        obs_encoded = self.encoder.encode(obs_camera).to(DEVICE)
-        speed = (
-            torch.tensor(np.linalg.norm(obs["pose"][3:6], ord=2))
-            .to(DEVICE)
-            .reshape((-1, 1))
-            .float()
-        )/100.0
-        return torch.cat((obs_encoded, speed), 1).to(DEVICE)
+
+        return (obs2, self.action_last)
 
     def step(self, action, env=None):
         """Step env.
@@ -53,6 +48,7 @@ class EnvContainer:
             self.env = env
         obs, reward, done, info = self.env.step(action)
         reward = min(reward / 150.0, 1.0)
+        self.action_last = action
         return self._process_obs(obs), reward, done, info
 
     def reset(self, random_pos=False, env=None):
@@ -70,5 +66,6 @@ class EnvContainer:
             self.image_list = []
         if env:
             self.env = env
+        self.action_last = np.array([0.0, 0.0])
         obs = self.env.reset(random_pos=random_pos)
         return self._process_obs(obs)
