@@ -4,6 +4,7 @@ from torch.nn.functional import leaky_relu
 import torch 
 from typing import TypeVar, Union, Type, Callable, Any, Dict, Sequence, Mapping
 import numpy as np
+import gym
 
 def collate(batch, device=None):
   elem = batch[0]
@@ -108,24 +109,26 @@ class ActorModule(Module):
     self.device = device
     return super().to(device=device)
 
-  def act(self, obs, r, done, info, train=False):
+  def act(self, obs, train=False):
     obs_col = collate((obs,), device=self.device)
     with torch.no_grad():
       action_distribution = self.actor(obs_col)
       action_col = action_distribution.sample() if train else action_distribution.sample_deterministic()
     action, = partition(action_col)
-    return action, []
+    return action
 
 class ConvRTAC(ActorModule):
   def __init__(self, observation_space, action_space, hidden_units: int = 512, Conv: type = big_conv):
     super().__init__()
     assert isinstance(observation_space, gym.spaces.Tuple)
     (img_sp, vec_sp), ac_sp = observation_space
+    
 
     self.conv = Conv(img_sp.shape[0])
 
     with torch.no_grad():
       conv_size = self.conv(torch.zeros((1, *img_sp.shape))).view(1, -1).size(1)
+    
 
     self.lin1 = Linear(conv_size + vec_sp.shape[0] + ac_sp.shape[0], hidden_units)
     self.lin2 = Linear(hidden_units + vec_sp.shape[0] + ac_sp.shape[0], hidden_units)
@@ -138,7 +141,9 @@ class ConvRTAC(ActorModule):
     x = x.type(torch.float32)
     x = x / 255 - 0.5
     x = self.conv(x)
-    x = x.view(x.size(0), -1)
+    x = x.reshape(x.size(0), -1)
+    vec = vec.reshape(vec.size(0),-1)
+    action = action.reshape(action.size(0),-1)
     x = leaky_relu(self.lin1(torch.cat((x, vec, action), -1)))
     x = leaky_relu(self.lin2(torch.cat((x, vec, action), -1)))
     v = self.critic_layer(x)

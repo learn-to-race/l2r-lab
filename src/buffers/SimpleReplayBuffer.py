@@ -27,16 +27,20 @@ class SimpleReplayBuffer:
         # pdb.set_trace()
 
         def convert(arraylike):
-            obs, act = arraylike
-            if isinstance(obs, torch.Tensor):
-                if obs.requires_grad:
-                    obs = obs.detach()
-                obs = obs.cpu().numpy()
+            (obsa, obsb), act = arraylike
+            if isinstance(obsa, torch.Tensor):
+                if obsa.requires_grad:
+                    obsa = obsa.detach()
+                obsa = obsa.cpu().numpy()
+            if isinstance(obsb, torch.Tensor):
+                if obsb.requires_grad:
+                    obsb = obsb.detach()
+                obsb = obsb.cpu().numpy()
             if isinstance(act, torch.Tensor):
                 if act.requires_grad:
                     act = act.detach()
                 act = act.cpu().numpy()
-            return (obs, act)
+            return ((obsa, obsb), act)
 
         if type(values) is dict:
             # convert to deque
@@ -66,7 +70,6 @@ class SimpleReplayBuffer:
         return len(self.buffer)
 
     def sample_batch(self):
-
         idxs = np.random.choice(
             len(self.buffer), size=min(self.batch_size, len(self.buffer)), replace=False
         )
@@ -83,8 +86,23 @@ class SimpleReplayBuffer:
         self.weights = torch.tensor(
             np.zeros_like(idxs), dtype=torch.float32, device=DEVICE
         )
+
+        def makeme(listy):
+          return torch.tensor(np.stack(listy), dtype=torch.float32, device=DEVICE)
+
+        def convertme(list_of_elems):
+            if isinstance(list_of_elems[0], tuple):
+                oala, oblb, oclc = [], [], []
+                for (oab, obb), ocb in list_of_elems:
+                    oala.append(oab)
+                    oblb.append(obb)
+                    oclc.append(ocb)
+                return (makeme(oala), makeme(oblb)), makeme(oclc)
+            else:
+                return makeme(list_of_elems)
+
         return {
-            k: torch.tensor(np.stack(v), dtype=torch.float32, device=DEVICE)
+            k: convertme(v)
             for k, v in batch.items()
         }
 

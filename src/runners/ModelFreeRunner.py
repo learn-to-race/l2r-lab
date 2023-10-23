@@ -96,10 +96,11 @@ class ModelFreeRunner(BaseRunner):
         self.file_logger.log_obj.info("Using random seed: {}".format(0))
 
         ## ENCODER Declaration
-        self.encoder = create_configurable(
-                encoder_config_path, NameToSourcePath.encoder
-                )
-        self.encoder.to(DEVICE)
+        #self.encoder = create_configurable(
+        #        encoder_config_path, NameToSourcePath.encoder
+        #        )
+        #self.encoder.to(DEVICE)
+        self.encoder = None
 
         ## BUFFER Declaration
         if not self.resume_training:
@@ -147,7 +148,7 @@ class ModelFreeRunner(BaseRunner):
             self.wandb_logger = WanDBLogger(
                     api_key=api_key, project_name="test-project", config=self.configs
                     )
-            t = 0
+        t = 0
         start_idx = self.last_saved_episode
         for ep_number in range(start_idx + 1, self.num_run_episodes + 1):
             done = False
@@ -181,7 +182,7 @@ class ModelFreeRunner(BaseRunner):
                             "done": done,
                             }
                         )
-                if done or t == self.max_episode_length:
+                if done:
                     self.replay_buffer.finish_path(action_obj)
 
                 obs_encoded = obs_encoded_new
@@ -191,6 +192,8 @@ class ModelFreeRunner(BaseRunner):
                     for _ in range(self.update_model_every):
                         batch = self.replay_buffer.sample_batch()
                         loss = self.agent.update(data=batch)
+                        if api_key:
+                          wandb.log(loss)
 
             if ep_number % self.eval_every == 0:
                 self.file_logger.log(f"Episode Number before eval: {ep_number}")

@@ -12,6 +12,7 @@ import torch
 import numpy as np
 from gym.spaces import Box, Tuple
 from torch.optim import Adam
+from functools import reduce
 
 from src.agents.base import BaseAgent
 from src.config.yamlize import yamlize, create_configurable, NameToSourcePath
@@ -58,12 +59,16 @@ class RTACAgent(BaseAgent):
 
         self.action_space = Box(-1, 1, (2,))
 
-        self.model = ConvSeparate(Tuple((Box(0, 255, (3, 384, 512)), Box(-1, 1, shape=(2,))), Box(-1, 1, (2,))), self.action_space)
+        self.model = ConvSeparate(Tuple((Tuple((Box(0, 255, (3, 384, 512)), Box(low=0, high=100, shape=(1,))), None), Box(-1, 1, shape=(2,))), None), Box(-1, 1, (2,)))
         self.model.to(DEVICE)
         self.model_target = deepcopy(self.model)
+        self.model_target.to(DEVICE)
 
         self.outputnorm = PopArt(self.model.critic_output_layers)
         self.outputnorm_target = PopArt(self.model_target.critic_output_layers)
+
+        self.outputnorm.to(DEVICE)
+        self.outputnorm_target.to(DEVICE)
 
         if self.load_checkpoint_from != "":
             self.load_model(self.load_checkpoint_from)
@@ -87,8 +92,9 @@ class RTACAgent(BaseAgent):
             ActionObj: Action object.
         """
         action_obj = ActionSample()
-        action_obj.action = self.model.act(obs.to(DEVICE), self.deterministic)
-            
+        (oa,ob),oc = obs
+        obs = ((torch.from_numpy(oa).float().to(DEVICE), ob.float().to(DEVICE)), torch.from_numpy(oc).float().to(DEVICE))
+        action_obj.action = self.model.act(obs, train=(not self.deterministic))
         self.t = self.t + 1
         return action_obj
 
@@ -134,9 +140,9 @@ class RTACAgent(BaseAgent):
         actions_log_prob = action_dist.log_prob(actions)[:, None]
 
         _, target, _ = self.model_target((o2[0], actions.detach()))
-        next_value_target = torch.min(target)
+        next_value_target = reduce(torch.min,target)
 
-        value_target = (1. - d) * self.discount * self.outputnorm_target.unnormalize(next_value_target)
+        value_target = (1. - d) * self.gamma * self.outputnorm_target.unnormalize(next_value_target)
         value_target += self.reward_scale * r
         value_target -= self.entropy_scale * actions_log_prob.detach()
         value_target = self.outputnorm.update(value_target)        
@@ -150,9 +156,9 @@ class RTACAgent(BaseAgent):
         with torch.no_grad():
             _, next_value, _ = self.model((o2[0], actions))
         next_value = torch.min(next_value)
-        loss_actor = - (1. - d) * self.discount * self.outputnorm.unnormalize(next_value)
+        loss_actor = - (1. - d) * self.gamma * self.outputnorm.unnormalize(next_value)
         loss_actor += self.entropy_scale * actions_log_prob
-        assert loss_actor.shape == (self.batchsize, 1)
+        assert loss_actor.shape == (a.shape[0], 1)
         loss_actor = self.outputnorm.normalize(loss_actor).mean()
 
         # update model
