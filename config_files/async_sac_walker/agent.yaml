@@ -1,0 +1,15 @@
+name: SACAgent
+config:
+  make_random_actions: 0
+  gamma: 0.98
+  polyak: 0.995
+  lr: 0.00073
+  alpha: 0.2
+  steps_to_sample_randomly: 10 # start_steps
+  checkpoint: '/mnt/SAC_VAE/best_SAC_VAE_episode_200.statedict'
+  actor_critic_cfg: './config_files/async_sac_walker/network.yaml'
+  load_checkpoint: False
+  model_save_path: '/mnt'
+  record_dir: '/mnt'
+  experiment_name: 'pixiethecat'
+  track_name: 'Thruxton'

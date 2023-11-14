@@ -1,15 +1,17 @@
 name: ModelFreeRunner
 config:
+  exp_config_path: "config_files/ppo_config/experiment.yaml"
   agent_config_path: "config_files/ppo_config/agent.yaml"
   buffer_config_path: "config_files/ppo_config/buffer.yaml"
   encoder_config_path: "config_files/ppo_config/encoder.yaml"
-  model_save_dir: '/mnt'
+  model_save_dir: '/mnt/'
+  experience_save_dir: '/mnt/'
   num_test_episodes: 1
   num_run_episodes: 5100
   save_every_nth_episode: 1000
+  total_environment_steps: 250_000
   update_model_after: 2000 # update_after steps
   update_model_every: 1 # update_every
   eval_every: 5000
   max_episode_length: 50000 # max_ep_len
-  experiment_state_path: '/mnt/SAC_VAE/experimentState.json'
-  experiment_name: 'SAC_VAE'
+  

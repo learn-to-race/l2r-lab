@@ -19,27 +19,29 @@ class BaseAgent(ABC):
         self.action_space = action_space
 
     def select_action(self, obs) -> np.array:  # pragma: no cover
-        """Select action based on obs
-
-        Args:
-            obs (np.array): Observation. See wrapper / env for details
-
-        Raises:
-            NotImplementedError: Need to implement in subclass
-
-        Returns:
-            np.array: Action
+        """
+        # Outputs action given the current observation
+        obs: a dictionary
+            During local development, the participants may specify their desired observations.
+            During evaluation on AICrowd, the participants will have access to
+            obs =
+            {
+              'CameraFrontRGB': front_img, # numpy array of shape (width, height, 3)
+              'CameraLeftRGB': left_img, # numpy array of shape (width, height, 3)
+              'CameraRightRGB': right_img, # numpy array of shape (width, height, 3)
+              'track_id': track_id, # integer value associated with a specific racetrack
+              'speed': speed # float value of vehicle speed in m/s
+            }
+        returns:
+            action: np.array (2,)
+            action should be in the form of [\delta, a], where \delta is the normalized steering angle, and a is the normalized acceleration.
         """
         raise NotImplementedError
 
     def register_reset(self, obs) -> np.array:  # pragma: no cover
-        """Handle reset of episode.
-
-        Args:
-            obs (np.array): Observation
-
-        Returns:
-            np.array: Action
+        """
+        Same input/output as select_action, except this method is called at episodal reset.
+        Defaults to select_action
         """
         return self.select_action(obs)
 

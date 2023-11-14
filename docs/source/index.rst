@@ -10,34 +10,11 @@ Welcome to l2r-benchmarks's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+
+
+Indices and tables
+==================
+
+* :ref:`genindex`
 * :ref:`modindex`
-
-:doc:`Usage Instructions </usage>`
-==================================
-
-:doc:`Contributing Instructions </contributing>`
-================================================
-
-
-
-:doc:`Agents </src.agents>`
-===========================
-
-:doc:`Buffers </src.buffers>`
-=============================
-
-:doc:`Config </src.config>`
-===========================
-
-:doc:`Encoders </src.encoders>`
-===============================
-
-:doc:`Loggers </src.loggers>`
-=============================
-
-:doc:`Networks </src.networks>`
-===============================
-
-:doc:`Runners </src.runners>`
-=============================
-
+* :ref:`search`

@@ -20,14 +20,6 @@ src.loggers.TensorboardLogger module
    :undoc-members:
    :show-inheritance:
 
-src.loggers.WanDBLogger module
-------------------------------
-
-.. automodule:: src.loggers.WanDBLogger
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 src.loggers.base module
 -----------------------
 
