@@ -1,0 +1,8 @@
+experiment_config:
+  experiment_name: 'SAC_VAE'
+  inference_only: False
+  load_checkpoint: False
+  record_experience: False
+  update_after: 2000
+  update_every: 100
+  experiment_state_path: '/mnt/SAC_VAE/experimentState.json'

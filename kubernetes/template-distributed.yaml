@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: TODO
+  labels:
+    tier: TODO
+spec:
+  # 2 to start, then for phortx 30-40 is the upper bound probably
+  replicas: TODO
+  selector:
+    matchLabels:
+      tier: TODO
+  template:
+    metadata:
+      labels:
+        tier: TODO
+    spec:
+      nodeSelector:
+        # we don't specify the cluster, maybe it's ok to just delete the phortx stuff?
+        # 1-3
+        nodetype: phortx
+
+      containers:
+        - name: TODO
+          tty: true
+          stdin: true
+          resources: # Maybe a good idea to have the learner on its own gpu, specify like below
+            limits:
+              nvidia.com/gpu: 1
+          env:
+            - name: NVIDIA_VISIBLE_DEVICES
+              value: "0"
+            - name: CUDA_VISIBLE_DEVICES
+              value: "0"
+          image: docker.pdl.cmu.edu/jingyua4/safepo:v1
+          command: # remember to configure 'AGENT_NAME' and 'TRAINING_PARADIGM'
+            - /bin/bash
+            - -c
+            - wget https://raw.githubusercontent.com/BrandonBian/l2r-distributed/main/setup/setup-mamba.sh &&
+              chmod +x setup-mamba.sh &&
+              source ./setup-mamba.sh &&
+              mamba activate l2r &&
+              cd /workspace/l2r-distributed &&
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: TODO
+  labels:
+    app.kubernetes.io/name: proxy
+spec:
+  hostname: learner-1
+  nodeSelector:
+    nodetype: phortx
+  containers:
+    - name: TODO
+      tty: true
+      stdin: true
+      resources: # Maybe a good idea to have the learner on its own gpu, specify like below
+        limits:
+          nvidia.com/gpu: 1
+      image: docker.pdl.cmu.edu/jingyua4/safepo:v1 # Slightly different image or files or git repo
+      command: # remember to configure 'AGENT_NAME' and 'TRAINING_PARADIGM'
+        - /bin/bash
+        - -c
+        - wget https://raw.githubusercontent.com/BrandonBian/l2r-distributed/main/setup/setup-mamba.sh &&
+          chmod +x setup-mamba.sh &&
+          source ./setup-mamba.sh &&
+          mamba activate l2r &&
+          cd /workspace/l2r-distributed && 
+      ports:
+        - name: TODO
+          containerPort: 4444
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: TODO
+spec:
+  selector:
+    app.kubernetes.io/name: proxy
+  ports:
+    - name: TODO
+      protocol: TCP
+      port: 4444
+      targetPort: TODO

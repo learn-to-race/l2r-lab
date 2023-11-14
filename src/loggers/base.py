@@ -24,9 +24,10 @@ class BaseLogger(ABC):
         pass
 
     def log(self, logging_data):
-        """Log data
+        pass
 
-        Args:
-            logging_data (dict): Data to log
-        """
+    def log_env_train(self, metric_data):
+        pass
+
+    def log_env_val(self, metric_data):
         pass

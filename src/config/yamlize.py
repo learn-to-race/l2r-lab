@@ -1,16 +1,14 @@
-"""New auto-config system, to make easy configuration management."""
-try:
-    from typing import get_type_hints, TypedDict, get_origin, get_args
-except ImportError:
-    from typing_extensions import get_type_hints, TypedDict, get_origin, get_args
+from typing import get_type_hints, TypedDict
 import inspect
 import strictyaml as sl
 import yaml
 from enum import Enum
 import importlib
+import typing as tp
 
 
 def yamlize(configurable_class):
+    # define a new display method
     """Class decorator for configuration. See any of the configurable classes for more.
 
     Args:
@@ -30,13 +28,13 @@ def yamlize(configurable_class):
             sl.validator: strictyaml validator for YAML checking.
         """
 
-        type_container = get_origin(val)
+        type_container = tp.get_origin(val)
         if type_container == tuple:
-            args = get_args(val)
+            args = tp.get_args(val)
             arg_list = [convert_type_to_strictyaml(arg) for arg in args]
             return sl.FixedSeq(arg_list)
         elif type_container == list:
-            args = get_args(val)
+            args = tp.get_args(val)
             arg_list = [convert_type_to_strictyaml(arg) for arg in args]
             return sl.Seq(arg_list[0])
         elif type_container is not None:
@@ -115,20 +113,13 @@ def yamlize(configurable_class):
             import logging
 
             logging.info(config_dict)
-            raise ValueError(config_dict) from e
+            raise ValueError(config_dict)
 
     configurable_class.instantiate_from_config = classmethod(init_from_config)
-    print(configurable_class)
     return configurable_class
 
 
 class NameToSourcePath(Enum):
-    """Map Enum from name to source path location.
-
-    Args:
-        Enum (str): Path to import class from.
-    """
-
     buffer = "src.buffers"
     encoder = "src.encoders"
     logger = "src.loggers"
@@ -136,7 +127,7 @@ class NameToSourcePath(Enum):
     agent = "src.agents"
     network = "src.networks"
     planner = "src.agents.petsplanners"
-
+    environment = "src.envs"
 
 class ConfigurableDict(TypedDict):
     """Dict specification for nested config files."""

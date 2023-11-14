@@ -72,7 +72,7 @@ class VAE(BaseEncoder, torch.nn.Module):
         if load_checkpoint_from == "":
             logging.info("Not loading any visual encoder checkpoint")
         else:
-            self.load_state_dict(torch.load(load_checkpoint_from))
+            self.load_state_dict(torch.load(load_checkpoint_from, map_location="cpu"))
         # TODO: Figure out where speed encoder should go.
 
     def reparameterize(self, mu, logvar):

@@ -1,20 +1,16 @@
-"""Container for the pip-installable L2R environment. As L2R has some slight differences compared to what we expect, this allows us to fit the pieces together."""
 import numpy as np
 import torch
 import itertools
 from src.constants import DEVICE
+import gym
 
 
-class EnvContainer:
-    """Container for the pip-installed L2R Environment."""
+class EnvContainer(gym.Env):
+    """Container for L2R Environment."""
 
-    def __init__(self, encoder=None):
-        """Initialize container around encoder object
-
-        Args:
-            encoder (nn.Module, optional): Encoder object to encoder inputs. Defaults to None.
-        """
+    def __init__(self, encoder=None, env=None):
         self.encoder = encoder
+        self.env = env
 
     def _process_obs(self, obs: dict):
         """Process observation using encoder
@@ -45,10 +41,11 @@ class EnvContainer:
         Returns:
             tuple: Tuple of next_obs, reward, done, info
         """
+        action = action.reshape((2,))
         if env:
             self.env = env
-        obs, reward, done, info = self.env.step(action)
-        return self._process_obs(obs), reward, done, info
+        obs, reward, terminated, info = self.env.step(action)
+        return self._process_obs(obs), reward, terminated, info
 
     def reset(self, random_pos=False, env=None):
         """Reset env.
@@ -64,3 +61,11 @@ class EnvContainer:
             self.env = env
         obs = self.env.reset(random_pos=random_pos)
         return self._process_obs(obs)
+
+    def __getattr__(self, name):
+        try:
+            import logging
+
+            return getattr(self.env, name)
+        except Exception as e:
+            raise e

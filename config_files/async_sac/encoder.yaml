@@ -1,0 +1,7 @@
+name: VAE
+config:
+  image_channels: 3
+  image_height: 42
+  image_width: 144
+  z_dim: 32
+  load_checkpoint_from: '/workspace/l2r-benchmarks/best_vae.pth'

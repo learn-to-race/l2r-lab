@@ -1,7 +1,15 @@
 name: PPOAgent
 config:
+  make_random_actions: False
+  gamma: 0.99
+  polyak: 0.995
   lr: 0.003
   clip_ratio: 0.2
+  alpha: 0.2
   steps_to_sample_randomly: 1000 # start_steps
-  load_checkpoint_from: ''
-  actor_critic_cfg_path: './config_files/ppo_config/network.yaml'
+  checkpoint: '/mnt/log_dir_test/best_ppo_log_dir_test_episode_0.statedict'
+  load_checkpoint: False
+  model_save_path: '/mnt'
+  experiment_name: 'PPO_TEST_1'
+  record_dir: '/mnt'
+  track_name: 'Thruxton'

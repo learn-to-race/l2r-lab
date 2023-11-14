@@ -1,6 +1,8 @@
-"""PPOAgent Definition. """
 import itertools
+from multiprocessing.sharedctypes import Value
+import queue, threading
 from copy import deepcopy
+from src.loggers.FileLogger import FileLogger
 
 import torch
 import numpy as np
@@ -8,65 +10,83 @@ from gym.spaces import Box
 from torch.optim import Adam
 
 from src.agents.base import BaseAgent
-from src.config.yamlize import yamlize, create_configurable, NameToSourcePath
+from src.config.yamlize import yamlize
+from src.networks.critic import PPOMLPActorCritic
 from src.utils.utils import ActionSample
 
 from src.constants import DEVICE
 
+from src.config.parser import read_config
+from src.config.schema import agent_schema
+
+from src.utils.envwrapper import EnvContainer
+
 
 @yamlize
 class PPOAgent(BaseAgent):
-    """Proximal Policy Optimization Agent"""
-
     def __init__(
         self,
         steps_to_sample_randomly: int,
+        record_dir: str,
+        track_name: str,
+        experiment_name: str,
+        gamma: float,
+        alpha: float,
+        polyak: float,
+        make_random_actions: bool,
+        checkpoint: str,
+        load_checkpoint: bool,
+        model_save_path: str,
         lr: float,
         clip_ratio: float,
-        load_checkpoint_from: str = "",
-        train_pi_iters: int = 80,
-        train_v_iters: int = 80,
-        target_kl: float = 0.01,
-        actor_critic_cfg_path: str = "",
     ):
-        """Initialize Proximal Policy Optimization Agent
-
-        Args:
-            steps_to_sample_randomly (int): Number of steps to sample randomly
-            lr (float): Learning rate
-            clip_ratio (float): Clip ratio
-            load_checkpoint_from (str, optional): Where to load checkpoint from. Using default does not load any checkpoint. Defaults to ''.
-            train_pi_iters (int, optional): Number of update iterations for policy per call to `update`. Defaults to 80.
-            train_v_iters (int, optional): Number of update iterations for value per call to `update`. Defaults to 80.
-            target_kl (float, optional): Target Kubler-Leibleck Divergence. Defaults to 0.01.
-            actor_critic_cfg_path (str, optional): Path to AC cfg. Defaults to ''.
-        """
         super(PPOAgent, self).__init__()
         self.steps_to_sample_randomly = steps_to_sample_randomly
-        self.load_checkpoint_from = load_checkpoint_from
+        self.record_dir = record_dir
+        self.track_name = track_name
+        self.experiment_name = experiment_name
+        self.gamma = gamma
+        self.alpha = alpha
+        self.polyak = polyak
+        self.make_random_actions = make_random_actions
+        self.checkpoint = checkpoint
+        self.load_checkpoint = load_checkpoint
+        self.model_save_path = model_save_path
         self.lr = lr
         self.clip_ratio = clip_ratio
 
+        self.save_episodes = True
+        self.episode_num = 0
+        self.best_ret = 0
         self.t = 0
-        self.deterministic = False  # TODO: Fix.
-        self.train_pi_iters = train_pi_iters
-        self.train_v_iters = train_v_iters
+        self.deterministic = False
+        self.atol = 1e-3
+        self.store_from_safe = False
+        self.pi_scheduler = None
+        self.t_start = 0
+        self.best_pct = 0
+        self.train_pi_iters = 80
+        self.train_v_iters = 80
 
+        self.metadata = {}
         self.record = {"transition_actor": ""}
 
         self.action_space = Box(-1, 1, (2,))
         self.act_dim = self.action_space.shape[0]
         self.obs_dim = 32
 
-        self.actor_critic = create_configurable(
-            actor_critic_cfg_path, NameToSourcePath.network
+        self.actor_critic = PPOMLPActorCritic(
+            self.obs_dim,
+            self.action_space,
+            None,
+            latent_dims=self.obs_dim,
+            device=DEVICE,
         )
-        self.actor_critic.to(DEVICE)
 
-        self.target_kl = target_kl
+        self.target_kl = 0.01
 
-        if self.load_checkpoint_from != "":
-            self.load_model(self.load_checkpoint_from)
+        if self.checkpoint and self.load_checkpoint:
+            self.load_model(self.checkpoint)
 
         self.actor_critic_target = deepcopy(self.actor_critic)
 
@@ -79,23 +99,14 @@ class PPOAgent(BaseAgent):
             self.pi_optimizer, 1, gamma=0.5
         )
 
-    def select_action(self, obs) -> np.array:
-        """Select action given observation array.
-
-        Args:
-            obs (np.array): Observation array
-
-        Returns:
-            np.array: Action array
-        """
+    def select_action(self, obs, encode=False) -> np.array:
         action_obj = ActionSample()
         if self.t > self.steps_to_sample_randomly:
-            a, logp = self.actor_critic.pi(obs.to(DEVICE), self.deterministic)
-            action_obj.action = a.squeeze().detach().cpu().numpy()
-            action_obj.value = (
-                self.actor_critic.v(obs.to(DEVICE)).detach().cpu().numpy()
-            )
-            action_obj.logp = logp.squeeze().detach().cpu().numpy()
+            a, v, logp = self.actor_critic.step(obs.to(DEVICE))
+            a = a  # numpy array...
+            action_obj.action = a
+            action_obj.value = v
+            action_obj.logp = logp
             self.record["transition_actor"] = "learner"
         else:
             a = self.action_space.sample()
@@ -104,25 +115,18 @@ class PPOAgent(BaseAgent):
             # TODO: add default value after getting value shape
             v = np.ones((1,))
             action_obj.action = a
-            action_obj.value = v
             action_obj.logp = logp
+            action_obj.value = v
             self.record["transition_actor"] = "random"
         self.t = self.t + 1
         return action_obj
 
-    def register_reset(self, obs):
-        """Handle reset of episode."""
-        pass
+    def register_reset(self, obs) -> np.array:
+        self.deterministic = True
+        self.t = 1e6
 
-    def _compute_loss_pi(self, data):
-        """Compute policy loss.
+    def compute_loss_pi(self, data):
 
-        Args:
-            data (dict): dictionary of data to calculate loss from.
-
-        Returns:
-            loss_pi, pi_info: loss information.
-        """
         obs, act, adv, logp_old = data["obs"], data["act"], data["adv"], data["logp"]
 
         # Policy loss
@@ -148,35 +152,22 @@ class PPOAgent(BaseAgent):
         pi_info = dict(kl=approx_kl, cf=clipfrac)
         return loss_pi, pi_info
 
-    def _compute_loss_v(self, data):
-        """Compute value loss.
-
-        Args:
-            data (dict): dictionary of data to calculate from.
-
-        Returns:
-            loss_q: loss information.
-        """
+    def compute_loss_v(self, data):
         ## Check this.
         obs, ret = data["obs"], data["ret"]
         ret = ret.to(DEVICE)
         return ((self.actor_critic.v(obs.to(DEVICE)) - ret) ** 2).mean()
 
     def update(self, data):
-        """Update parameters given batch of data.
 
-        Args:
-            data (dict): Dict of batched data to update params from.
-        """
-
-        pi_l_old, pi_info_old = self._compute_loss_pi(data)
+        pi_l_old, pi_info_old = self.compute_loss_pi(data)
         pi_l_old = pi_l_old.item()
-        v_l_old = self._compute_loss_v(data).item()
+        v_l_old = self.compute_loss_v(data).item()
 
         # Train policy with multiple steps of gradient descent
         for i in range(self.train_pi_iters):
             self.pi_optimizer.zero_grad()
-            loss_pi, pi_info = self._compute_loss_pi(data)
+            loss_pi, pi_info = self.compute_loss_pi(data)
             kl = pi_info["kl"]
             if kl > 1.5 * self.target_kl:
                 # print(next(self.actor_critic.pi.mu_net.parameters()))
@@ -190,22 +181,12 @@ class PPOAgent(BaseAgent):
         # Value function learning
         for i in range(self.train_v_iters):
             self.v_optimizer.zero_grad()
-            loss_v = self._compute_loss_v(data)
+            loss_v = self.compute_loss_v(data)
             loss_v.backward()
             self.v_optimizer.step()
 
     def load_model(self, path):
-        """Load model from path
-
-        Args:
-            path (str): Load path using str
-        """
         self.actor_critic.load_state_dict(torch.load(path))
 
     def save_model(self, path):
-        """Save model to path
-
-        Args:
-            path (str): Save path using str
-        """
         torch.save(self.actor_critic.state_dict(), path)

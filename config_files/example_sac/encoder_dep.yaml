@@ -1,0 +1,22 @@
+encoder_config:
+  encoder_type: 'vae'
+  load_checkpoint_from: 'l2r/common/models/vae_144w_42h_32latent.pth'
+  latent_dims: 32
+  hiddens: 
+    - 32
+    - 64
+    - 64
+    - 32
+    - 32
+  speed_hiddens:  
+    - 8
+    - 8
+  actor_hiddens: 
+    - 64
+    - 64
+    - 32
+  image_channels: 3
+  image_width: 144
+  image_height: 42
+  ac_input_dims: 32 
+  include_speed: 1     # encoder_switch: 1

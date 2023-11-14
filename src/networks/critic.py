@@ -1,9 +1,10 @@
-"""Network definitions for all critic functions."""
 import torch
 import torch.nn as nn
-import numpy as np
-import torch.nn.functional as F
-from torch.distributions import Normal
+from src.networks.network_baselines import (
+    MLPCategoricalActor,
+    MLPGaussianActor,
+    SquashedGaussianMLPActor,
+)
 from enum import Enum
 from typing import List
 from src.config.yamlize import (
@@ -12,7 +13,6 @@ from src.config.yamlize import (
     create_configurable_from_dict,
     NameToSourcePath,
 )
-from src.constants import DEVICE
 
 
 def mlp(sizes, activation=nn.ReLU, output_activation=nn.Identity):
@@ -31,73 +31,6 @@ def mlp(sizes, activation=nn.ReLU, output_activation=nn.Identity):
         act = activation if j < len(sizes) - 2 else output_activation
         layers += [nn.Linear(sizes[j], sizes[j + 1]), act()]
     return nn.Sequential(*layers)
-
-
-LOG_STD_MAX = 2
-LOG_STD_MIN = -20
-
-
-class SquashedGaussianMLPActor(nn.Module):
-    """Squashed Gaussian MLP Actor."""
-
-    def __init__(self, obs_dim, act_dim, hidden_sizes, activation, act_limit):
-        """Initialize Squashed Gaussian Actor
-
-        Args:
-            obs_dim (int): Observation dimension
-            act_dim (int): Action dimension
-            hidden_sizes (list[int]): List of hidden sizes
-            activation (nn.Module): Activation function
-            act_limit (int): Action limit
-        """
-        super().__init__()
-        self.net = mlp([obs_dim] + list(hidden_sizes), activation, activation)
-        self.mu_layer = nn.Linear(hidden_sizes[-1], act_dim)
-        self.log_std_layer = nn.Linear(hidden_sizes[-1], act_dim)
-        self.act_limit = act_limit
-
-    def forward(self, obs, deterministic=False, with_logprob=True):
-        """Get action from obs.
-
-        Args:
-            obs (int): Observation
-            deterministic (bool, optional): Whether to use means instead of rsample. Defaults to False.
-            with_logprob (bool, optional): Whether to return log probability. Defaults to True.
-
-        Returns:
-            tuple: Tuple of action, logprob
-        """
-        net_out = self.net(obs)
-        mu = self.mu_layer(net_out)
-        log_std = self.log_std_layer(net_out)
-        log_std = torch.clamp(log_std, LOG_STD_MIN, LOG_STD_MAX)
-        std = torch.exp(log_std)
-
-        # Pre-squash distribution and sample
-        pi_distribution = Normal(mu, std)
-        if deterministic:
-            # Only used for evaluating policy at test time.
-            pi_action = mu
-        else:
-            pi_action = pi_distribution.rsample()
-
-        if with_logprob:
-            # Compute logprob from Gaussian, and then apply correction for Tanh squashing.
-            # NOTE: The correction formula is a little bit magic. To get an understanding
-            # of where it comes from, check out the original SAC paper (arXiv 1801.01290)
-            # and look in appendix C. This is a more numerically-stable equivalent to Eq 21.
-            # Try deriving it yourself as a (very difficult) exercise. :)
-            logp_pi = pi_distribution.log_prob(pi_action).sum(axis=-1)
-            logp_pi -= (2 * (np.log(2) - pi_action - F.softplus(-2 * pi_action))).sum(
-                axis=1
-            )
-        else:
-            logp_pi = None
-
-        pi_action = torch.tanh(pi_action)
-        pi_action = self.act_limit * pi_action
-
-        return pi_action, logp_pi
 
 
 @yamlize
@@ -215,6 +148,53 @@ class Vfunction(nn.Module):
         return out.view(-1)
 
 
+# Not currently working
+class DuelingNetwork(nn.Module):
+    """
+    Further modify from Qfunction to
+        - Add an action_encoder
+        - Separate state-dependent value and advantage
+            Q(s, a) = V(s) + A(s, a)
+    """
+
+    def __init__(self, cfg):
+        """
+        Initialize the layers for the Dueling Network
+        """
+
+        super().__init__()
+        self.cfg = cfg
+
+        self.speed_encoder = mlp([1] + [8, 8])
+        self.action_encoder = mlp([2] + [64, 64, 32])
+
+        n_obs = 32 + [8, 8][-1]
+        # self.V_network = mlp([n_obs] + [32,64,64,32,32] + [1])
+        self.A_network = mlp([n_obs + [64, 64, 32][-1]] + [32, 64, 64, 32, 32] + [1])
+        # self.lr = cfg['resnet']['LR']
+
+    # TODO: We're not currently using the advantage????
+    def forward(self, obs_feat, action, advantage_only=False):
+        """
+        Get image, speed and action encoding and get the Value by passing through an MLP
+        """
+
+        # if obs_feat.ndimension() == 1:
+        #    obs_feat = obs_feat.unsqueeze(0)
+        img_embed = obs_feat[..., :32]  # n x latent_dims
+        speed = obs_feat[..., 32:]  # n x 1
+        spd_embed = self.speed_encoder(speed)  # n x 16
+        action_embed = self.action_encoder(action)
+
+        out = self.A_network(torch.cat([img_embed, spd_embed, action_embed], dim=-1))
+        """
+        if advantage_only == False:
+            V = self.V_network(torch.cat([img_embed, spd_embed], dim = -1)) # n x 1
+            out += V
+        """
+        return out.view(-1)
+
+
 class ActivationType(Enum):
     """
     Enum class to indicate the type of activation
@@ -252,6 +232,7 @@ class ActorCritic(nn.Module):
 
         super().__init__()
         self.state_dim = state_dim
+        self.action_dim = action_dim
         obs_dim = state_dim
         act_dim = action_dim
         act_limit = max_action_value
@@ -267,7 +248,7 @@ class ActorCritic(nn.Module):
                 ActivationType.__getattr__(activation).value,
                 act_limit,
             )
-
+            
         else:
             self.policy = SquashedGaussianMLPActor(
                 obs_dim,
@@ -287,6 +268,7 @@ class ActorCritic(nn.Module):
         elif critic_cfg["name"] == "Vfunction":
             self.v = create_configurable_from_dict(critic_cfg, NameToSourcePath.network)
 
+
     def pi(self, obs_feat, deterministic=False):
         """
         Wrapper around the policy. Helps manage dimensions and add/remove features from the input space.
@@ -295,12 +277,12 @@ class ActorCritic(nn.Module):
         # if obs_feat.ndimension() == 1:
         #    obs_feat = obs_feat.unsqueeze(0)
         if self.use_speed:
-            img_embed = obs_feat[..., : self.state_dim]
-            speed = self.speed_encoder(obs_feat[..., self.state_dim :])
+            img_embed = obs_feat[..., :self.state_dim]
+            speed = self.speed_encoder(obs_feat[..., self.state_dim:])
             feat = torch.cat([img_embed, speed], dim=-1)
 
         else:
-            img_embed = obs_feat[..., : self.state_dim]  # n x latent_dims
+            img_embed = obs_feat[..., :self.state_dim]  # n x latent_dims
             feat = torch.cat(
                 [
                     img_embed,
@@ -317,11 +299,11 @@ class ActorCritic(nn.Module):
         #    obs_feat = obs_feat.unsqueeze(0)
         with torch.no_grad():
             if self.use_speed:
-                img_embed = obs_feat[..., : self.state_dim]
-                speed = self.speed_encoder(obs_feat[..., self.state_dim :])
+                img_embed = obs_feat[..., :self.state_dim]
+                speed = self.speed_encoder(obs_feat[..., self.state_dim:])
                 feat = torch.cat([img_embed, speed], dim=-1)
             else:
-                img_embed = obs_feat[..., : self.state_dim]  # n x latent_dims
+                img_embed = obs_feat[..., :self.state_dim]  # n x latent_dims
                 feat = torch.cat(
                     [
                         img_embed,
@@ -331,3 +313,75 @@ class ActorCritic(nn.Module):
             a, _ = self.policy(feat, deterministic, False)
             a = a.squeeze(0)
         return a.numpy() if a.device == "cpu" else a.cpu().numpy()
+
+
+class PPOMLPActorCritic(nn.Module):
+    """
+    The Actor-Critic for PPO. Like class ActorCritic, it initializes action and observation space dimensions and the actor
+    and critic networks. It also defines the wrapper for the policy and a function to get action.
+    """
+
+    def __init__(
+        self,
+        observation_space,
+        action_space,
+        cfg,
+        activation=nn.Tanh,
+        latent_dims=None,
+        device="cpu",
+    ):
+        """
+        Initialize the observation and action space dimensions and the actor and critic networks.
+        """
+
+        super().__init__()
+
+        obs_dim = observation_space.shape[0] if latent_dims is None else latent_dims
+        act_dim = action_space.shape[0]
+        act_limit = action_space.high[0]
+
+        # build policy and value functions
+        self.speed_encoder = mlp([1] + [8, 8])
+        self.policy = SquashedGaussianMLPActor(
+            obs_dim, act_dim, [64, 64, 32], activation, act_limit
+        )
+
+        # build value function
+        self.v = Vfunction(cfg)
+
+        self.to(device)
+        self.device = device
+
+    def pi(self, obs_feat, deterministic=False):
+        """
+        Wrapper around the policy. Helps manage dimensions and add/remove features from the input space.
+        """
+
+        # if obs_feat.ndimension() == 1:
+        #    obs_feat = obs_feat.unsqueeze(0)
+        img_embed = obs_feat[..., :32]  # n x latent_dims
+        # speed = obs_feat[..., 32:]  # n x 1
+        # spd_embed = self.speed_encoder(speed)  # n x 8
+        feat = torch.cat(
+            [
+                img_embed,
+            ],
+            dim=-1,
+        )
+        return self.policy(feat, deterministic, True)
+
+    def step(self, obs, deterministic=False):
+        """
+        Uses the policy to get and return an action on the appropriate device in the right format.
+        """
+        with torch.no_grad():
+            img_embed = obs[..., :32]  # n x latent_dims
+            # speed = obs_feat[..., 32:] # n x 1
+            # raise ValueError(obs_feat.shape, img_embed.shape, speed.shape)
+            # pdb.set_trace()
+            # spd_embed = self.speed_encoder(speed) # n x 8
+            feat = img_embed
+            a, logp_a = self.policy(feat, deterministic, True)
+            a = a.squeeze(0)
+            v = self.v(obs)
+        return a.cpu().numpy(), v.cpu().numpy(), logp_a.cpu().numpy()
